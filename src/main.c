@@ -2,103 +2,57 @@
 #include <Elementary.h>
 #include <e_gadget_types.h>
 #include "dbus_acceleration.h"
+#include "accelerometer-orientation.h"
 
-
-Eina_Bool access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, Eina_Bool *string_property_value) {
-    const char *type;
-    Eina_Bool res = EINA_TRUE;
-
-    if (!eldbus_message_arguments_get(msg, "v", variant))
-    {
-        printf("Error getting arguments.");
-        res = EINA_FALSE;
-    }
-    type = eldbus_message_iter_signature_get((*variant));
-    if (type[1])
-    {
-        printf("It is a complex type, not handle yet.\n\n");
-        res = EINA_FALSE;
-    }
-    if (type[0] != 's')
-    {
-        printf("Expected type is int.\n\n");
-        res = EINA_FALSE;
-    }
-    if (!eldbus_message_iter_arguments_get((*variant), "s", string_property_value))
-    {
-        printf("error in eldbus_message_iter_arguments_get()\n\n");
-        res = EINA_FALSE;
-    }
-    free((void *) type);
-    return res;
-}
-
-Eina_Bool access_bool_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, Eina_Bool *boolean_property_value) {
-    const char *type;
-    Eina_Bool res = EINA_TRUE;
-
-    if (!eldbus_message_arguments_get(msg, "v", variant))
-    {
-        printf("Error getting arguments.");
-        res = EINA_FALSE;
-    }
-    type = eldbus_message_iter_signature_get((*variant));
-    if (type[1])
-    {
-        printf("It is a complex type, not handle yet.\n\n");
-        res = EINA_FALSE;
-    }
-    if (type[0] != 'b')
-    {
-        printf("Expected type is int.\n\n");
-        res = EINA_FALSE;
-    }
-    if (!eldbus_message_iter_arguments_get((*variant), "b", boolean_property_value))
-    {
-        printf("error in eldbus_message_iter_arguments_get()\n\n");
-        res = EINA_FALSE;
-    }
-    free((void *) type);
-    return res;
-}
-
+/**
+ * Callback definition to handle the execution of the ClaimAccelerometer() method of DBUS
+ * interface net.hadess.SensorProxy
+ * @param data not used
+ * @param msg The message
+ * @param pending
+ */
 static void
-on_has_accelerometer(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)
-{
+on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED) {
+    Eldbus_Message_Iter *array, *entry;
     const char *errname, *errmsg;
-    Eina_Bool has_accelerometer = EINA_FALSE;
-    Eldbus_Message_Iter *variant = NULL;
 
-    if (eldbus_message_error_get(msg, &errname, &errmsg))
-    {
+    if (eldbus_message_error_get(msg, &errname, &errmsg)) {
         fprintf(stderr, "Error: %s %s\n", errname, errmsg);
         return;
     }
+}
 
-    access_bool_property(msg, &variant, &has_accelerometer);
-    printf("Has Accelerometer: %d\n", has_accelerometer);
-    struct DbusAccelerometer *d1 = (struct DbusAccelerometer *)data;
-    d1->has_accelerometer = has_accelerometer;
+/**
+ * Callback definition to handle the execution of the ReleaseAccelerometer() method of DBUS
+ * interface net.hadess.SensorProxy
+ * @param data not used
+ * @param msg The message
+ * @param pending
+ */
+static void
+on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED) {
+    Eldbus_Message_Iter *array, *entry;
+    const char *errname, *errmsg;
+
+    if (eldbus_message_error_get(msg, &errname, &errmsg)) {
+        fprintf(stderr, "Error: %s %s\n", errname, errmsg);
+        return;
+    }
 }
 
 static void
-on_accelerometer_change(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)
-{
-    const char *errname, *errmsg, *type;
-    char *orientation = malloc(sizeof(char[20]));
-    Eina_Bool res = EINA_FALSE;
-    Eldbus_Message_Iter *variant = NULL;
+_cb_properties_changed(void *data, const Eldbus_Message *msg) {
+    struct DbusAccelerometer *structure = data;
+    Eldbus_Proxy *proxy = structure->proxy;
+    Eldbus_Message_Iter *array, *invalidate;
+    char *iface;
 
-    if (eldbus_message_error_get(msg, &errname, &errmsg))
+    if (!eldbus_message_arguments_get(msg, "sa{sv}as", &iface, &array, &invalidate))
     {
-        fprintf(stderr, "Error: %s %s\n", errname, errmsg);
+        ERR("Error getting data from properties changed signal.");
         return;
     }
-
-    access_string_property(msg, &variant, &orientation);
-    struct DbusAccelerometer *d1 = (struct DbusAccelerometer *)data;
-    d1->orientation = orientation;
-    printf("Orientation: %s\n", orientation);
+    eldbus_proxy_property_get(proxy, "AccelerometerOrientation", on_accelerometer_orientation, &structure);
 }
 
 static void
@@ -107,11 +61,7 @@ on_click(void *data, Evas_Object *obj, void *event_info)
     evas_object_del(data);
 }
 
-static EAPI_MAIN int initialise_dbus() {
-    return eldbus_init();
-}
-
-static Eldbus_Proxy* get_dbus_interface() {
+static Eldbus_Proxy* get_dbus_interface(const char* IFACE) {
     Eldbus_Connection *conn;
     Eldbus_Object *obj;
     Eldbus_Proxy *sensor_proxy = NULL;
@@ -130,7 +80,7 @@ static Eldbus_Proxy* get_dbus_interface() {
     else {
         fprintf(stdout, "Object fetched.\n");
     }
-    sensor_proxy = eldbus_proxy_get(obj, EFL_DBUS_ACC_IFACE);
+    sensor_proxy = eldbus_proxy_get(obj, IFACE);
     if (!sensor_proxy)
     {
         fprintf(stderr, "Error: could not get proxy\n");
@@ -147,27 +97,31 @@ elm_main(int argc, char **argv)
     Evas_Object *win, *btn, *icon;
     int gadget =0, id_num = 0;
     char buf[16];
-    Eldbus_Proxy *sensor_proxy;
-    Eldbus_Pending *pending_has_orientation, *pending_orientation;
+    Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
+    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim;
 
     struct DbusAccelerometer *current_accelerometer_pointer = malloc(sizeof(struct DbusAccelerometer));
     current_accelerometer_pointer->has_accelerometer = 0;
     current_accelerometer_pointer->orientation = "undefined";
+    current_accelerometer_pointer->proxy = NULL;
 
-    EAPI_MAIN int initialization = initialise_dbus();
+    int initialization = eldbus_init();
     if (initialization == EXIT_FAILURE)
     {
         return initialization;
     }
 
-    sensor_proxy = get_dbus_interface();
+    sensor_proxy = get_dbus_interface(EFL_DBUS_ACC_IFACE);
+    sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
     if (sensor_proxy == NULL)
     {
         return EXIT_FAILURE;
     }
 
+    current_accelerometer_pointer->proxy = sensor_proxy;
+
     pending_has_orientation = eldbus_proxy_property_get(sensor_proxy, "HasAccelerometer", on_has_accelerometer, &current_accelerometer_pointer);
-    pending_orientation = eldbus_proxy_property_get(sensor_proxy, "AccelerometerOrientation", on_accelerometer_change, &current_accelerometer_pointer);
+    pending_orientation = eldbus_proxy_property_get(sensor_proxy, "AccelerometerOrientation", on_accelerometer_orientation, &current_accelerometer_pointer);
     if (!pending_has_orientation)
     {
         fprintf(stderr, "Error: could not get property HasAccelerometer\n");
@@ -178,6 +132,18 @@ elm_main(int argc, char **argv)
         fprintf(stderr, "Error: could not get property AccelerometerOrientation\n");
         return EXIT_FAILURE;
     }
+
+    // Claim the accelerometer
+    pending_acc_claim = eldbus_proxy_call(sensor_proxy, "ClaimAccelerometer", on_accelerometer_claimed, NULL, -1, "");
+
+   if (!pending_acc_claim)
+     {
+        fprintf(stderr, "Error: could not call ClaimAccelerometer\n");
+        return EXIT_FAILURE;
+     }
+    Eldbus_Signal_Handler *sh = eldbus_proxy_signal_handler_add(sensor_proxy_properties, "PropertiesChanged",
+                                                                _cb_properties_changed, current_accelerometer_pointer);
+//    Eldbus_Signal_Handler *sh = eldbus_proxy_properties_changed_callback_add(sensor_proxy_properties, _cb_properties_changed, sensor_proxy_properties);
 
     elm_policy_set(ELM_POLICY_QUIT, ELM_POLICY_QUIT_LAST_WINDOW_CLOSED);
 
