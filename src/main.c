@@ -108,6 +108,7 @@ elm_main(int argc, char **argv)
     int initialization = eldbus_init();
     if (initialization == EXIT_FAILURE)
     {
+        ERR("Unable to initialise ELDBUS");
         return initialization;
     }
 
@@ -115,6 +116,7 @@ elm_main(int argc, char **argv)
     sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
     if (sensor_proxy == NULL)
     {
+        ERR("Unable to get the proxy for interface %s\n", EFL_DBUS_ACC_IFACE);
         return EXIT_FAILURE;
     }
 
@@ -124,12 +126,12 @@ elm_main(int argc, char **argv)
     pending_orientation = eldbus_proxy_property_get(sensor_proxy, "AccelerometerOrientation", on_accelerometer_orientation, &current_accelerometer_pointer);
     if (!pending_has_orientation)
     {
-        fprintf(stderr, "Error: could not get property HasAccelerometer\n");
+        ERR("Error: could not get property HasAccelerometer");
         return EXIT_FAILURE;
     }
     if (!pending_orientation)
     {
-        fprintf(stderr, "Error: could not get property AccelerometerOrientation\n");
+        ERR("Error: could not get property AccelerometerOrientation\n");
         return EXIT_FAILURE;
     }
 
@@ -138,7 +140,7 @@ elm_main(int argc, char **argv)
 
    if (!pending_acc_claim)
      {
-        fprintf(stderr, "Error: could not call ClaimAccelerometer\n");
+        ERR("Error: could not call ClaimAccelerometer\n");
         return EXIT_FAILURE;
      }
     Eldbus_Signal_Handler *sh = eldbus_proxy_signal_handler_add(sensor_proxy_properties, "PropertiesChanged",

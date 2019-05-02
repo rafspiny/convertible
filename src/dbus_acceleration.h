@@ -47,7 +47,7 @@ access_bool_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, E
  * @param msg The message
  * @param pending
  */
-static void
+void
 on_has_accelerometer(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
 
 /**
@@ -56,6 +56,6 @@ on_has_accelerometer(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_P
  * @param msg The message
  * @param pending
  */
-static void
+void
 on_accelerometer_orientation(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
 #endif
