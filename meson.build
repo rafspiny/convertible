@@ -27,9 +27,12 @@ endif
 module_arch = '@0@-@1@-@2@'.format(host_os, host_machine.cpu_family(), release)
 dir_prefix = get_option('prefix')
 dir_lib = join_paths(dir_prefix, get_option('libdir'))
-dir_gadgets = join_paths([dir_lib, 'enlightenment/gadgets', module_arch])
+dir_gadgets = join_paths([dir_lib, 'enlightenment/modules', 'convertible'])
 build_files = [
-        'src/main.c'
+        'src/main.c',
+        'src/dbus_acceleration.h',
+        'src/dbus_acceleration.c',
+        'src/accelerometer-orientation.h'
 ]
 
 inc = include_directories('.', '../../')
@@ -39,14 +42,14 @@ executable('e_gadget_convertible',
         dependencies: deps,
         c_args : ['-fPIE', '-fPIC'],
         link_args : ['-rdynamic', '-pie'],
-        install_dir: join_paths([dir_gadgets, 'e_gadget_convertible']),
+        install_dir: join_paths([dir_gadgets, module_arch]),
         install: true)
 
 desktop_data = configuration_data()
         desktop_data.set('GADGET_DIR', dir_gadgets)
 
-configure_file(input: 'helloworld.desktop.in',
-        output: 'e_convertible.desktop',
+configure_file(input: 'convertible.desktop.in',
+        output: 'module.desktop',
         install: true,
-        install_dir: join_paths([dir_gadgets, 'e_gadget_convertible']),
+        install_dir: dir_gadgets,
         configuration: desktop_data)

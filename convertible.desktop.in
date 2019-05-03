@@ -1,7 +1,8 @@
 [Desktop Entry]
-Type=Application
+Type=Link
 Name=E-convertible
-Exec=@GADGET_DIR@/convertible/e_gadget_convertible
-Icon=convertible/tablet
-X-Gadget-Version=1.0
-X-Gadget-Bugreport=https://www.enlightenment.org/contrib/report-bug
+GenericName=E-convertible
+Comment=Helps to manage screen rotation based on accelerometer
+Comment[it]=Aiuta a gestire la rotazione dello schermo basandosi sui dati dell'accelerometro
+Icon=e-module-wireless
+X-Enlightenment-ModuleType=system
