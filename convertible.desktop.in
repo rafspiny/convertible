@@ -4,5 +4,5 @@ Name=E-convertible
 GenericName=E-convertible
 Comment=Helps to manage screen rotation based on accelerometer
 Comment[it]=Aiuta a gestire la rotazione dello schermo basandosi sui dati dell'accelerometro
-Icon=e-module-wireless
+Icon=convertible-icon
 X-Enlightenment-ModuleType=system

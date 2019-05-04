@@ -37,7 +37,7 @@ build_files = [
 
 inc = include_directories('.', '../../')
 
-executable('e_gadget_convertible',
+executable('module.so',
         build_files,
         dependencies: deps,
         c_args : ['-fPIE', '-fPIC'],
@@ -53,3 +53,15 @@ configure_file(input: 'convertible.desktop.in',
         install: true,
         install_dir: dir_gadgets,
         configuration: desktop_data)
+
+configure_file(input: 'theme/convertible.edj',
+        output: 'e-module-convertible.edj',
+        install: true,
+        install_dir: dir_gadgets,
+        copy: true)
+
+configure_file(input: 'theme/convertible-icon.edj',
+        output: 'convertible-icon.edj',
+        install: true,
+        install_dir: dir_gadgets,
+        copy: true)
