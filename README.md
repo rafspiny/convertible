@@ -7,6 +7,7 @@ iio-sensor-proxy is providing data from the accelerometer through dbus.
 To install it please run:
 ```bash
 meson build --prefix /usr
+cd build
 ninja 
 sudo ninja install
 ``` 

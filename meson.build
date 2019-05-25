@@ -29,21 +29,24 @@ dir_prefix = get_option('prefix')
 dir_lib = join_paths(dir_prefix, get_option('libdir'))
 dir_gadgets = join_paths([dir_lib, 'enlightenment/modules', 'convertible'])
 build_files = [
-        'src/main.c',
+        'src/mod.c',
         'src/dbus_acceleration.h',
         'src/dbus_acceleration.c',
+        'src/e-gadget-convertible.h',
+        'src/e-gadget-convertible.c',
         'src/accelerometer-orientation.h'
 ]
 
 inc = include_directories('.', '../../')
 
-executable('module.so',
-        build_files,
-        dependencies: deps,
-        c_args : ['-fPIE', '-fPIC'],
-        link_args : ['-rdynamic', '-pie'],
-        install_dir: join_paths([dir_gadgets, module_arch]),
-        install: true)
+shared_module('module', build_files,
+        include_directories: inc,
+        name_prefix        : '',
+        dependencies       : [ dep_e, deps ],
+        install_dir        : join_paths([dir_gadgets, module_arch]),
+        install            : true,
+        link_args          : '-Wl,--unresolved-symbols=ignore-all'
+       )
 
 desktop_data = configuration_data()
         desktop_data.set('GADGET_DIR', dir_gadgets)
