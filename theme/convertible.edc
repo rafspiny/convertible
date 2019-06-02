@@ -1,0 +1,150 @@
+collections {
+   base_scale: 1.0;
+   group { 
+      name: "main";
+      alias: "e/modules/convertible/main";
+      /* Images to be used */
+      images.image: "tablet.svg" COMP;
+      images.image: "tablet_shadow.svg" COMP;
+      images.image: "keyboard_activated.svg" COMP;
+      images.image: "keyboard_deactivated.svg" COMP;
+
+      parts {
+         part { 
+            name: "convertible/tablet";
+            description { 
+               state: "default" 0.0;
+               rel1.relative: 0.10 0.20;
+               rel2.relative: 0.90 1.00;
+               align: 0 0.5;
+               image.normal: "tablet.svg";
+               fixed: 0 0;
+            }
+            description { 
+               state: "locked_autorotate" 0.0;
+               rel1.relative: 0.10 0.20;
+               rel2.relative: 0.90 1.00;
+               align: 0 0.5;
+               image.normal: "tablet_shadow.svg";
+               fixed: 0 0;
+            }
+         }
+         part { 
+            name: "convertible/header";
+            type: RECT;
+            description { 
+               state: "default" 0.0;
+               color: 0 0 0 0;
+               rel2 {
+                  relative: 0.70 0.20;
+               }
+            }
+         }
+         part { 
+            name: "convertible/monitor"; 
+            type: TEXT;
+            description { 
+               state: "default" 0.0;
+               /*color: 0 0 255 0;*/
+               rel1 {
+                  relative: 0 0;
+               }
+               rel2 {
+                  relative: 0.70 0.20;
+               }
+               text {
+                  text: "edp1";
+                  font: "Sans";
+                  size: 12;
+                  ellipsis: 0;
+               }
+            }
+         }
+         part {
+            name: "convertible/input";
+            description { 
+               state: "default" 0.0;
+               rel1.relative: 0.70 0;
+               rel2.relative: 1 0.20;
+               align: 0.5 0.5;
+               image.normal: "keyboard_activated.svg";
+               fixed: 1 1;
+            }
+            description { 
+               state: "deactivated" 0.0;
+               rel1.relative: 0.70 0;
+               rel2.relative: 1 0.20;
+               align: 0.5 0.5;
+               image.normal: "keyboard_deactivated.svg";
+               fixed: 1 1;
+            }
+         }
+      }
+      programs {
+         program { 
+            name: "disable_autorotate";
+            action: STATE_SET "locked_autorotate" 0.0;
+            target: "convertible/tablet";
+            in: 0.1 0.0; 
+            signal: "mouse,clicked,*";
+            source: "convertible/tablet";
+            filter: "convertible/tablet" "default";
+            after: "notify_disable_autorotate";
+         }
+         program { 
+            name: "notify_disable_autorotate";
+            signal: "mouse,clicked,*"; 
+            source: "convertible/tablet";
+            action: SIGNAL_EMIT "lock,rotation" "tablet";
+         }
+         program {
+            name: "enable_autorotate";
+            action: STATE_SET "default" 0.0;
+            target: "convertible/tablet";
+            in: 0.1 0.0;
+            signal: "mouse,clicked,*";
+            source: "convertible/tablet";
+            filter: "convertible/tablet" "locked_autorotate";
+            after: "notify_enable_autorotate";
+         }
+         program { 
+            name: "notify_enable_autorotate";
+            signal: "mouse,clicked,*"; 
+            source: "convertible/tablet";
+            action: SIGNAL_EMIT "unlock,rotation" "tablet";
+         }
+         program { 
+            name: "enable_keyboard";
+            action: STATE_SET "default" 0.0;
+            target: "convertible/input";
+            in: 0.1 0.0;
+            signal: "mouse,clicked,*";
+            source: "convertible/input";
+            filter: "convertible/input" "deactivated";
+            after: "notify_enable_keyboard";
+         }
+         program { 
+            name: "notify_enable_keyboard";
+            signal: "mouse,clicked,*"; 
+            source: "convertible/input";
+            action: SIGNAL_EMIT "enable,keyboard" "keyboard";
+         }
+         program { 
+            name: "disable_keyboard";
+            action: STATE_SET "deactivated" 0.0;
+            target: "convertible/input";
+            in: 0.1 0.0;
+            signal: "mouse,clicked,*";
+            source: "convertible/input";
+            filter: "convertible/input" "default";
+            after: "notify_disable_keyboard";
+         }
+         program { 
+            name: "notify_disable_keyboard";
+            signal: "mouse,clicked,*"; 
+            source: "convertible/input";
+            action: SIGNAL_EMIT "disable,keyboard" "keyboard";
+         }
+      }
+   }
+}
