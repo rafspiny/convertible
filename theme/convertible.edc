@@ -93,8 +93,8 @@ collections {
          }
          program { 
             name: "notify_disable_autorotate";
-            signal: "mouse,clicked,*"; 
-            source: "convertible/tablet";
+            /*signal: "mouse,clicked,*"; 
+            source: "convertible/tablet";*/
             action: SIGNAL_EMIT "lock,rotation" "tablet";
          }
          program {
@@ -109,8 +109,8 @@ collections {
          }
          program { 
             name: "notify_enable_autorotate";
-            signal: "mouse,clicked,*"; 
-            source: "convertible/tablet";
+            /*signal: "mouse,clicked,*"; 
+            source: "convertible/tablet";*/
             action: SIGNAL_EMIT "unlock,rotation" "tablet";
          }
          program { 
@@ -125,8 +125,8 @@ collections {
          }
          program { 
             name: "notify_enable_keyboard";
-            signal: "mouse,clicked,*"; 
-            source: "convertible/input";
+            /*signal: "mouse,clicked,*"; 
+            source: "convertible/input";*/
             action: SIGNAL_EMIT "enable,keyboard" "keyboard";
          }
          program { 
@@ -141,8 +141,8 @@ collections {
          }
          program { 
             name: "notify_disable_keyboard";
-            signal: "mouse,clicked,*"; 
-            source: "convertible/input";
+            /*signal: "mouse,clicked,*"; 
+            source: "convertible/input";*/
             action: SIGNAL_EMIT "disable,keyboard" "keyboard";
          }
       }
