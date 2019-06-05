@@ -10,6 +10,8 @@
 
 /* gadcon callback for actions */
 void _button_cb_mouse_down(void *data, Evas *e, Evas_Object *obj, void *event_info);
+void _rotation_signal_cb(void *data EINA_UNUSED, Evas_Object *obj, const char *sig EINA_UNUSED, const char *src EINA_UNUSED);
+void _keyboard_signal_cb(void *data EINA_UNUSED, Evas_Object *obj, const char *sig EINA_UNUSED, const char *src EINA_UNUSED);
 
 /* end gadcon callback for actions */
 

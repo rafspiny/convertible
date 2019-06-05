@@ -1,29 +1,45 @@
 //
 // Created by raffaele on 04/05/19.
 //
+#include "convertible_logging.h"
 #include "e-gadget-convertible.h"
 #include "convertible.h"
+#include "dbus_acceleration.h"
 #include <Elementary.h>
 #include <e_module.h>
 
 // The main module reference
 E_Module *convertible_module;
 
+// Logger
+int _convertible_log_dom;
+
 /**
- * Free resource when the gadget is removed
+ * Free resources when the gadget is removed
  * */
 static void
 convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
-    fprintf(stdout, "CONVERTIBLE convertible_delete\n");
+    WARN("CONVERTIBLE convertible_delete\n");
     Instance *inst = data;
 
     if (inst->accelerometer)
     {
-//        e_menu_post_deactivate_callback_set(inst->main_menu, NULL, NULL);
+    //        e_menu_post_deactivate_callback_set(inst->main_menu, NULL, NULL);
         e_object_del(E_OBJECT(inst->accelerometer));
     }
-//    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
+    // Remove callbacks
+    WARN("Removing callbacks");
+    evas_object_event_callback_del(inst->o_button, EVAS_CALLBACK_DEL, convertible_del);
+    elm_layout_signal_callback_del(inst->o_button, "lock,rotation", "tablet", _rotation_signal_cb);
+    elm_layout_signal_callback_del(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
+    elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _rotation_signal_cb);
+    elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _rotation_signal_cb);
+
+    // Removeing logger
+    eina_log_domain_unregister(_convertible_log_dom);
+    _convertible_log_dom = -1;
+    //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
     free(inst);
 }
 
@@ -33,13 +49,13 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
 static void
 _gadget_created(void *data, Evas_Object *obj, void *event_info)
 {
-    fprintf(stdout, "CONVERTIBLE gadget_created\n");
+    WARN("CONVERTIBLE gadget_created\n");
     Instance *inst = data;
 
     if (event_info != inst->o_button) return;
 //    do_orient(inst, e_gadget_site_orient_get(obj), e_gadget_site_anchor_get(obj));
     evas_object_smart_callback_del_full(obj, "gadget_created", _gadget_created, inst);
-    fprintf(stdout, "CONVERTIBLE gadget_created END\n");
+    WARN("CONVERTIBLE gadget_created END\n");
 }
 
 /**
@@ -52,48 +68,53 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient)
     Instance *inst;
     char theme_overlay_path[4096];
 
-    fprintf(stdout, "CREATE FUNCTION\n");
+    WARN("convertible_create entered");
     if (e_gadget_site_is_desklock(parent)) return NULL;
     if (*id == 0) *id = 1;
-    fprintf(stdout, "CREATE FUNCTION 2\n");
+
+    WARN("creating instance");
     inst = E_NEW(Instance, 1);
 //    inst->site = parent;
 
 //    o = elm_layout_add(parent);
 
-    fprintf(stdout, "before setting edje\n");
-    // Registering the theme in order to get our small custom icon#include <Elementary.h>
-    snprintf(&theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
-    fprintf(stdout, theme_overlay_path);
-    fprintf(stdout, "\n");
-    fprintf(stdout, "after setting edje theme\n");
+    WARN("setting edje theme layer");
+    // Registering the theme in order to get our small custom icon
+    snprintf(theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
+    WARN(theme_overlay_path);
     elm_theme_extension_add(NULL, theme_overlay_path);
-    fprintf(stdout, "after setting edje extension\n");
+    WARN("theme overlay set");
+
     // Setting the small icon
     o = elm_layout_add(parent);
-    fprintf(stdout, "before settin icon edje\n");
+    WARN("setting icon");
     e_theme_edje_object_set(o, "base/theme/modules/convertible",
                             "e/modules/convertible/main");
     //edje_object_signal_emit(o, "e,state,unfocused", "e");
-    fprintf(stdout, "after setting edje\n");
+    WARN("after setting edje icon");
 
-    fprintf(stdout, "CREATE FUNCTION 3\n");
-    e_theme_edje_object_set(o, NULL, "e/gadget/convertible/main");
-    elm_layout_signal_emit(o, "e,state,unfocused", "e");
-    fprintf(stdout, "CREATE FUNCTION 4\n");
-
+    WARN("saving edje reference in instance");
     inst->o_button = o;
     evas_object_size_hint_aspect_set(o, EVAS_ASPECT_CONTROL_BOTH, 1, 1);
-    fprintf(stdout, "CREATE FUNCTION 5\n");
 
-    evas_object_event_callback_add(o, EVAS_CALLBACK_MOUSE_DOWN, _button_cb_mouse_down, inst);
-    evas_object_event_callback_add(o, EVAS_CALLBACK_DEL, convertible_del, inst);
-    fprintf(stdout, "CREATE FUNCTION 6\n");
+    WARN("Adding callbacks to react to events and gadget removal");
+//    evas_object_event_callback_add(o, EVAS_CALLBACK_MOUSE_DOWN, _button_cb_mouse_down, inst);
+    WARN("Adding callback for creation");
 //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
+
+    // Adding callback for EDJE object
     evas_object_smart_callback_add(parent, "gadget_created", _gadget_created, inst);
-    fprintf(stdout, "CREATE FUNCTION 7\n");
+    evas_object_event_callback_add(o, EVAS_CALLBACK_DEL, convertible_del, inst);
+    elm_layout_signal_callback_add(o, "lock,rotation", "tablet", _rotation_signal_cb, inst);
+    elm_layout_signal_callback_add(o, "unlock,rotation", "tablet", _rotation_signal_cb, inst);
+    elm_layout_signal_callback_add(o, "enable,keyboard", "keyboard", _rotation_signal_cb, inst);
+    elm_layout_signal_callback_add(o, "disable,keyboard", "keyboard", _rotation_signal_cb, inst);
+
+    // Bringing in the instance ref. It is useful in the delete callback
+    convertible_module->data = inst;
+
 //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
-    fprintf(stdout, "CREATE FUNCTION 8\n");
+    WARN("convertible_create end");
 
     return o;
 }
@@ -108,25 +129,26 @@ E_API E_Module_Api e_modapi =
 E_API void *
 e_modapi_init(E_Module *m)
 {
-    fprintf(stdout, "CONVERTIBLE: In module init");
-    EINTERN Evas_Object *start_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient);
+    // Initialise the logger
+    _convertible_log_dom = eina_log_domain_register("convertible", EINA_COLOR_LIGHTBLUE);
 
-//    _e_gconvertible_log_domain = eina_log_domain_register("convertible_gadget", EINA_COLOR_RED);
     convertible_module = m;
-//    e_gadcon_provider_register(&_gadcon_class);
+    // It looks like this is not needed right now
+    //    e_gadcon_provider_register(&_gadcon_class);
+
+    INF("Setting the callback for creation");
     e_gadget_type_add("convertible", convertible_create, NULL);
-    fprintf(stdout, "CONVERTIBLE: In module init END");
+
     return m;
 }
 
 E_API int
 e_modapi_shutdown(E_Module *m EINA_UNUSED)
 {
-    fprintf(stdout, "CONVERTIBLE: In module shutdown");
+    INF("Shutting down the module");
     convertible_module = NULL;
-//    e_gadcon_provider_unregister(&_gadcon_class);
+    //    e_gadcon_provider_unregister(&_gadcon_class);
     e_gadget_type_del("convertible");
-    fprintf(stdout, "CONVERTIBLE: In module shutdown END");
     return 1;
 }
 
