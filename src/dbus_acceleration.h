@@ -12,9 +12,15 @@ struct DbusAccelerometer {
     Eina_Bool has_accelerometer;
     char *orientation;
     Eina_Bool monitoring;
-    Eldbus_Proxy *proxy;
+    Eina_Bool acquired;
+    Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
+    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
 };
 
+/**
+ * Helper to get the interface
+ * */
+Eldbus_Proxy* get_dbus_interface(const char* IFACE);
 
 /**
  * Helper function to extract ta string property from the message
@@ -53,4 +59,24 @@ on_has_accelerometer(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_P
  */
 void
 on_accelerometer_orientation(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
+
+/**
+ * Callback definition to handle the execution of the ClaimAccelerometer() method of DBUS
+ * interface net.hadess.SensorProxy
+ * @param data not used
+ * @param msg The message
+ * @param pending
+ */
+void
+on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
+
+/**
+ * Callback definition to handle the execution of the ReleaseAccelerometer() method of DBUS
+ * interface net.hadess.SensorProxy
+ * @param data not used
+ * @param msg The message
+ * @param pending
+ */
+void
+on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
 #endif

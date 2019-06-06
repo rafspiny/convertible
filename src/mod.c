@@ -14,6 +14,21 @@ E_Module *convertible_module;
 // Logger
 int _convertible_log_dom;
 
+static void
+_cb_properties_changed(void *data, const Eldbus_Message *msg) {
+    struct DbusAccelerometer *structure = data;
+    Eldbus_Proxy *proxy = structure->sensor_proxy;
+    Eldbus_Message_Iter *array, *invalidate;
+    char *iface;
+
+    if (!eldbus_message_arguments_get(msg, "sa{sv}as", &iface, &array, &invalidate))
+    {
+        ERR("Error getting data from properties changed signal.");
+        return;
+    }
+    eldbus_proxy_property_get(proxy, "AccelerometerOrientation", on_accelerometer_orientation, &structure);
+}
+
 /**
  * Free resources when the gadget is removed
  * */
@@ -35,6 +50,9 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
     elm_layout_signal_callback_del(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
     elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _rotation_signal_cb);
     elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _rotation_signal_cb);
+
+    // dbus related stuff
+    eldbus_shutdown();
 
     // Removeing logger
     eina_log_domain_unregister(_convertible_log_dom);
@@ -74,6 +92,11 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient)
 
     WARN("creating instance");
     inst = E_NEW(Instance, 1);
+    inst->accelerometer = malloc(sizeof(struct DbusAccelerometer));
+    inst->accelerometer->has_accelerometer = 0;
+    inst->accelerometer->orientation = "undefined";
+    inst->accelerometer->sensor_proxy = NULL;
+    inst->accelerometer->sensor_proxy_properties = NULL;
 //    inst->site = parent;
 
 //    o = elm_layout_add(parent);
@@ -112,6 +135,52 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient)
 
     // Bringing in the instance ref. It is useful in the delete callback
     convertible_module->data = inst;
+
+    // Initialise DBUS component
+    WARN("Before eldbus initialization");
+    int initialization = eldbus_init();
+    if (initialization == EXIT_FAILURE)
+    {
+        ERR("Unable to initialise ELDBUS");
+        // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
+    }
+
+    WARN("Before creatign shortcut");
+    struct DbusAccelerometer *accelerometer = inst->accelerometer;
+
+    WARN("Before get dbus interface");
+    accelerometer->sensor_proxy = get_dbus_interface(EFL_DBUS_ACC_IFACE);
+    accelerometer->sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
+    if (accelerometer->sensor_proxy == NULL)
+    {
+        ERR("Unable to get the proxy for interface %s", EFL_DBUS_ACC_IFACE);
+        // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
+    }
+
+    accelerometer->pending_has_orientation = eldbus_proxy_property_get(accelerometer->sensor_proxy, "HasAccelerometer", on_has_accelerometer, &accelerometer);
+    accelerometer->pending_orientation = eldbus_proxy_property_get(accelerometer->sensor_proxy, "AccelerometerOrientation", on_accelerometer_orientation, &accelerometer);
+    if (!accelerometer->pending_has_orientation)
+    {
+        ERR("Error: could not get property HasAccelerometer");
+        // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
+    }
+    if (!accelerometer->pending_orientation)
+    {
+        ERR("Error: could not get property AccelerometerOrientation\n");
+        // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
+    }
+
+    // Claim the accelerometer
+    accelerometer->pending_acc_claim = eldbus_proxy_call(accelerometer->sensor_proxy, "ClaimAccelerometer", on_accelerometer_claimed, NULL, -1, "");
+//    accelerometer->pending_acc_crelease = eldbus_proxy_call(accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, NULL, -1, "");
+
+    if (!accelerometer->pending_acc_claim)
+    {
+        ERR("Error: could not call ClaimAccelerometer\n");
+        // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
+    }
+    Eldbus_Signal_Handler *sh = eldbus_proxy_signal_handler_add(accelerometer->sensor_proxy_properties, "PropertiesChanged",
+                                                                _cb_properties_changed, accelerometer);
 
 //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
     WARN("convertible_create end");

@@ -1,7 +1,11 @@
-This gadget is meant to help report screen rotation based on iio-sensor-proxy.
-iio-sensor-proxy is providing data from the accelerometer through dbus.
+This gadget is meant to improve screen rotation quality by leveraging on [iio-sensor-proxy](https://github.com/hadess/iio-sensor-proxy).
+iio-sensor-proxy is a D-Bus proxy for accelerometers and ambient light sensors.
 
-## 
+This gadget, merely connect to DBUS and read the information put there by iio-sensor-proxy, provided that the gyroscope is supported.
+
+## Usage
+TBD
+ 
 
 ## Installation
 To install it please run:
