@@ -34,7 +34,9 @@ build_files = [
         'src/dbus_acceleration.c',
         'src/e-gadget-convertible.h',
         'src/e-gadget-convertible.c',
-        'src/accelerometer-orientation.h'
+        'src/accelerometer-orientation.h',
+        'src/convertible_logging.h',
+        'src/convertible.h'
 ]
 
 inc = include_directories('.', '../../')

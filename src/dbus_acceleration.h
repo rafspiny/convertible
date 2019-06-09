@@ -8,7 +8,9 @@
 #define EFL_DBUS_ACC_PATH "/net/hadess/SensorProxy"
 #define EFL_DBUS_ACC_IFACE "net.hadess.SensorProxy"
 
-struct DbusAccelerometer {
+typedef struct _DbusAccelerometer DbusAccelerometer;
+
+struct _DbusAccelerometer {
     Eina_Bool has_accelerometer;
     char *orientation;
     Eina_Bool monitoring;
@@ -30,7 +32,7 @@ Eldbus_Proxy* get_dbus_interface(const char* IFACE);
  * @return
  */
 Eina_Bool
-access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, Eina_Bool *string_property_value);
+access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, char **string_property_value);
 
 /**
  * Helper function to extract ta boolean property from the message

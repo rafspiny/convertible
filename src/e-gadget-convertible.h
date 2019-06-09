@@ -3,7 +3,6 @@
 //
 #include <Ecore.h>
 #include <Elementary.h>
-#include "e.h"
 
 #ifndef E_GADGET_CONVERTIBLE_E_GADGET_CONVERTIBLE_H
 #define E_GADGET_CONVERTIBLE_E_GADGET_CONVERTIBLE_H
