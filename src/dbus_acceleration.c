@@ -130,12 +130,12 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
     WARN("Current Orientation: %s", inst->accelerometer->orientation);
 
     int rotation = 0;
-
-    if (inst->main_screen->info.can_rot_270 && strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
+    // TODO Should really check for inst->main_screen->info.can_rot_x
+    if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
         rotation = 270;
-    if (inst->main_screen->info.can_rot_90 && strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
+    if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
         rotation = 90;
-    if (inst->main_screen->info.can_rot_180 && strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
+    if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
         rotation = 180;
     WARN("Rotation: %d", rotation);
 

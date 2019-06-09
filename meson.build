@@ -2,11 +2,12 @@ project('convertible', 'c',
         version: '0.1',
         license: 'MPL 2',
         default_options: [ 'c_std=gnu99', 'warning_level=2' ],
-        meson_version: '>= 0.40.0')
+        meson_version: '>= 0.47.0')
 pkgconfig = import('pkgconfig')
 cc = meson.get_compiler('c')
 
 dep_e = dependency('enlightenment')
+dep_edje = dependency('edje' , required: true)
 deps = [
         dep_e,
         dependency('elementary'),
@@ -40,6 +41,8 @@ build_files = [
 ]
 
 inc = include_directories('.', '../../')
+
+# subdir('theme')
 
 shared_module('module', build_files,
         include_directories: inc,
