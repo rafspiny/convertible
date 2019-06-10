@@ -17,6 +17,9 @@ struct _Instance
     DbusAccelerometer   *accelerometer;
     E_Randr2_Screen *main_screen;
     E_Config_Randr2_Screen *main_screen_cfg;
+
+    Eina_Bool locked_position;
+    Eina_Bool disabled_keyboard;
 };
 
 struct Convertible_Config {

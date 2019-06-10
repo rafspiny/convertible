@@ -10,19 +10,20 @@
 
 typedef struct _DbusAccelerometer DbusAccelerometer;
 
-struct _DbusAccelerometer {
-    Eina_Bool has_accelerometer;
-    char *orientation;
-    Eina_Bool monitoring;
-    Eina_Bool acquired;
-    Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
-    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
+struct _DbusAccelerometer
+{
+   Eina_Bool has_accelerometer;
+   char *orientation;
+   Eina_Bool monitoring;
+   Eina_Bool acquired;
+   Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
+   Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
 };
 
 /**
  * Helper to get the interface
  * */
-Eldbus_Proxy* get_dbus_interface(const char* IFACE);
+Eldbus_Proxy *get_dbus_interface(const char *IFACE);
 
 /**
  * Helper function to extract ta string property from the message
@@ -81,4 +82,5 @@ on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldb
  */
 void
 on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
+
 #endif
