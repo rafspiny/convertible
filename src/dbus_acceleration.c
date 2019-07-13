@@ -6,6 +6,8 @@
 #include "dbus_acceleration.h"
 #include "convertible.h"
 
+int _convertible_rotation_get(const char *orientation);
+
 Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 {
    Eldbus_Connection *conn;
@@ -123,49 +125,52 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
 {
    Instance *inst = (Instance *) data;
 
-   if (inst->locked_position == EINA_FALSE)
-   {
-
-      const char *errname, *errmsg;
-      char *orientation = malloc(sizeof(char[20]));
-      Eldbus_Message_Iter *variant = NULL;
-
-      if (eldbus_message_error_get(msg, &errname, &errmsg))
-      {
-         ERR("Error: %s %s", errname, errmsg);
-         return;
-      }
-
-      access_string_property(msg, &variant, &orientation);
-      inst->accelerometer->orientation = orientation;
-      WARN("Current Orientation: %s", inst->accelerometer->orientation);
-
-      int rotation = 0;
-      // TODO Should really check for inst->main_screen->info.can_rot_x
-      if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
-         rotation = 270;
-      if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
-         rotation = 90;
-      if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
-         rotation = 180;
-      WARN("Rotation: %d", rotation);
-
-      if (inst->main_screen_cfg == NULL)
-         ERR("Screen not set.");
-      else
-      {
-         WARN("Setting screen rotation to %d", rotation);
-         inst->main_screen_cfg->rotation = rotation;
-         e_randr2_config_apply();
-      }
-   }
-   else
+   if (inst->locked_position == EINA_TRUE)
    {
       WARN("Locked position. Ignoring rotation");
       return;
    }
 
+
+   const char *errname, *errmsg;
+   char *orientation = malloc(sizeof(char[20]));
+   Eldbus_Message_Iter *variant = NULL;
+
+   if (eldbus_message_error_get(msg, &errname, &errmsg))
+   {
+      ERR("Error: %s %s", errname, errmsg);
+      return;
+   }
+
+   access_string_property(msg, &variant, &orientation);
+   inst->accelerometer->orientation = orientation;
+   WARN("Current Orientation: %s", inst->accelerometer->orientation);
+   int rotation = _convertible_rotation_get(orientation);
+
+   if (inst->main_screen_cfg == NULL)
+      ERR("Screen not set.");
+   else
+   {
+      WARN("Setting screen rotation to %d", rotation);
+      inst->main_screen_cfg->rotation = rotation;
+      e_randr2_config_apply();
+   }
+
 }
+
+int _convertible_rotation_get(const char *orientation)
+   {
+   int rotation = 0;
+   // TODO Should really check for inst->main_screen->info.can_rot_x
+   if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
+         rotation = 270;
+   if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
+         rotation = 90;
+   if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
+         rotation = 180;
+   WARN("Rotation: %d", rotation);
+   return rotation;
+   }
 
 void
 on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)

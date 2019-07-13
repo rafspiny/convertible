@@ -41,7 +41,7 @@ _cb_properties_changed(void *data, const Eldbus_Message *msg)
 static void
 convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
-   WARN("CONVERTIBLE convertible_delete");
+   DBG("CONVERTIBLE convertible_delete");
    Instance *inst = data;
 
    if (inst->accelerometer)
@@ -59,7 +59,7 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    // }
 
    // Remove callbacks
-   WARN("Removing callbacks");
+   DBG("Removing callbacks");
    evas_object_event_callback_del(inst->o_button, EVAS_CALLBACK_DEL, convertible_del);
    elm_layout_signal_callback_del(inst->o_button, "lock,rotation", "tablet", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
@@ -70,13 +70,12 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    //    accelerometer->pending_acc_crelease = eldbus_proxy_call(accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, NULL, -1, "");
 
    // dbus related stuff
+   DBG("Shutting down ELDBUS");
    eldbus_shutdown();
 
-   // Removing logger
-   eina_log_domain_unregister(_convertible_log_dom);
-   _convertible_log_dom = -1;
-   //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
+   DBG("Freeing Instance");
    free(inst);
+   //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
 }
 
 /**
@@ -105,11 +104,11 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    E_Randr2_Screen *screen, *rotatable_screen = NULL;
    E_Config_Randr2_Screen *screen_randr_cfg = NULL;
 
-   WARN("convertible_create entered");
+   DBG("convertible_create entered");
    if (e_gadget_site_is_desklock(parent)) return NULL;
    if (*id == 0) *id = 1;
 
-   WARN("creating instance");
+   DBG("creating instance");
    inst = E_NEW(Instance, 1);
    inst->accelerometer = malloc(sizeof(DbusAccelerometer));
    inst->accelerometer->has_accelerometer = 0;
@@ -133,12 +132,12 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    //    inst->site = parent;
    //    o = elm_layout_add(parent);
 
-   WARN("setting edje theme layer");
+   DBG("setting edje theme layer");
    // Registering the theme in order to get our small custom icon
    snprintf(theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
-   WARN(theme_overlay_path);
+   DBG(theme_overlay_path);
    elm_theme_extension_add(NULL, theme_overlay_path);
-   WARN("theme overlay set");
+   DBG("theme overlay set");
 
    // Setting the small icon
    o = elm_layout_add(parent);
@@ -152,7 +151,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
 
    // Adding callback for EDJE object
-   WARN("Adding callback for creation and other events from EDJE");
+   INF("Adding callback for creation and other events from EDJE");
    evas_object_smart_callback_add(parent, "gadget_created", _gadget_created, inst);
    evas_object_event_callback_add(o, EVAS_CALLBACK_DEL, convertible_del, inst);
    elm_layout_signal_callback_add(o, "lock,rotation", "tablet", _rotation_signal_cb, inst);
@@ -164,12 +163,14 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    convertible_module->data = inst;
 
    // Initialise screen part
-   WARN("Looking for the main screen");
+   INF("Looking for the main screen");
    Eina_List *l;
    EINA_LIST_FOREACH(e_randr2->screens, l, screen)
    {
-      WARN("ID: %s", screen->id);
-      WARN("NAME: %s", screen->info.name);
+      DBG("ID: %s", screen->id);
+      DBG("NAME: %s", screen->info.name);
+      DBG("W: %d", screen->config.mode.w);
+      DBG("H: %d", screen->config.mode.h);
       // Arbitrarily chosen a condition to check that rotation is enabled
       if (rotatable_screen == NULL && screen->info.can_rot_90 == EINA_TRUE)
       {
@@ -186,18 +187,18 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
    inst->main_screen = rotatable_screen;
    inst->main_screen_cfg = screen_randr_cfg;
-   WARN("Screen %s has ben set", inst->main_screen->info.name);
+   DBG("Screen %s has ben set", inst->main_screen->info.name);
 
 
    // Initialise DBUS component
-   WARN("Before eldbus initialization");
+   DBG("Before eldbus initialization");
    int initialization = eldbus_init();
    if (initialization == EXIT_FAILURE)
    {
       ERR("Unable to initialise ELDBUS");
    }
 
-   WARN("Before get dbus interface");
+   INF("Before get dbus interface");
    inst->accelerometer->sensor_proxy = get_dbus_interface(EFL_DBUS_ACC_IFACE);
    inst->accelerometer->sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
    if (inst->accelerometer->sensor_proxy == NULL)
@@ -235,7 +236,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    // TODO Handle sh
 
    //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
-   WARN("convertible_create end");
+   DBG("convertible_create end");
 
    return o;
 }
@@ -270,6 +271,12 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
    convertible_module = NULL;
    //    e_gadcon_provider_unregister(&_gadcon_class);
    e_gadget_type_del("convertible");
+
+   // Removing logger
+   DBG("Removing the logger");
+   eina_log_domain_unregister(_convertible_log_dom);
+   _convertible_log_dom = -1;
+
    return 1;
 }
 
