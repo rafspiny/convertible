@@ -15,8 +15,7 @@ struct _Instance
     Evas_Object         *o_button;
     Evas_Object         *box;
     DbusAccelerometer   *accelerometer;
-    E_Randr2_Screen *main_screen;
-    E_Config_Randr2_Screen *main_screen_cfg;
+    Eina_List           *randr2_ids;
 
     Eina_Bool locked_position;
     Eina_Bool disabled_keyboard;
@@ -24,7 +23,7 @@ struct _Instance
 
 struct Convertible_Config {
     Eina_Bool monitoring;
-    Eina_Bool disable_keykboard_on_non_standard_position;
+    Eina_Bool disable_keyboard_on_non_standard_position;
 };
 
 #endif //E_GADGET_CONVERTIBLE_CONVERTIBLE_H

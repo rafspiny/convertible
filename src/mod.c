@@ -50,6 +50,8 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
       e_object_del(E_OBJECT(inst->accelerometer));
    }
 
+   eina_list_free(inst->randr2_ids);
+
    // TODO Not sure about these
    //    if (inst->main_screen) {
    //        e_object_del(E_OBJECT(inst->main_screen));
@@ -101,8 +103,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    Instance *inst;
    char theme_overlay_path[4096];
    // Screen related part
-   E_Randr2_Screen *screen, *rotatable_screen = NULL;
-   E_Config_Randr2_Screen *screen_randr_cfg = NULL;
+   E_Zone *zone = NULL;
 
    DBG("convertible_create entered");
    if (e_gadget_site_is_desklock(parent)) return NULL;
@@ -123,8 +124,6 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    inst->accelerometer->sensor_proxy_properties = NULL;
    //    TODO Should initialize those as well
    //    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
-   inst->main_screen = NULL;
-   inst->main_screen_cfg = NULL;
    inst->locked_position = EINA_FALSE;
    inst->disabled_keyboard = EINA_FALSE;
 
@@ -147,8 +146,47 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
    inst->o_button = o;
    evas_object_size_hint_aspect_set(o, EVAS_ASPECT_CONTROL_BOTH, 1, 1);
-
    //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
+
+   // Initialise screen part
+   INF("Looking for the main screen");
+   Eina_List *l;
+   inst->randr2_ids = NULL;
+   EINA_LIST_FOREACH(e_comp->zones, l, zone)
+      {
+      DBG("ID: %s", zone->id);
+      DBG("NAME: %s", zone->name);
+      DBG("RANDR2_ID: %s", zone->randr2_id);
+      DBG("W: %d", zone->w);
+      DBG("H: %d", zone->h);
+
+      // Get the screen for the zone
+      E_Randr2_Screen *screen = e_randr2_screen_id_find(zone->randr2_id);
+      // Arbitrarily chosen a condition to check that rotation is enabled
+      if (screen->info.can_rot_90 == EINA_TRUE)
+      {
+         int max_screen_length = 100;
+         char *randr2_id =  malloc(sizeof(char) * max_screen_length);
+         int copied_cahrs = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
+         if (copied_cahrs > max_screen_length)
+            ERR("Screen name %s has been truncated. Cannot handle screens.");
+         if (copied_cahrs < 0)
+            ERR("Can't copy the scren name");
+
+         inst->randr2_ids = eina_list_append(inst->randr2_ids, randr2_id);
+         if (eina_error_get())
+         {
+            ERR("Memory is low. List allocation failed.");
+         }
+      }
+   }
+
+   if (inst->randr2_ids == NULL)
+   {
+      ERR("Unable to find rotatable screens");
+   }
+
+   DBG("%d screen(s) has been found", eina_list_count(inst->randr2_ids));
 
    // Adding callback for EDJE object
    INF("Adding callback for creation and other events from EDJE");
@@ -161,34 +199,6 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
    // Bringing in the instance ref. It is useful in the delete callback
    convertible_module->data = inst;
-
-   // Initialise screen part
-   INF("Looking for the main screen");
-   Eina_List *l;
-   EINA_LIST_FOREACH(e_randr2->screens, l, screen)
-   {
-      DBG("ID: %s", screen->id);
-      DBG("NAME: %s", screen->info.name);
-      DBG("W: %d", screen->config.mode.w);
-      DBG("H: %d", screen->config.mode.h);
-      // Arbitrarily chosen a condition to check that rotation is enabled
-      if (rotatable_screen == NULL && screen->info.can_rot_90 == EINA_TRUE)
-      {
-         rotatable_screen = screen;
-      }
-   }
-
-   if (rotatable_screen == NULL)
-   {
-      ERR("Unable to set the main screen");
-   }
-
-   screen_randr_cfg = e_randr2_config_screen_find(rotatable_screen, e_randr2_cfg);
-
-   inst->main_screen = rotatable_screen;
-   inst->main_screen_cfg = screen_randr_cfg;
-   DBG("Screen %s has ben set", inst->main_screen->info.name);
-
 
    // Initialise DBUS component
    DBG("Before eldbus initialization");

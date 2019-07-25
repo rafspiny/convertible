@@ -147,15 +147,35 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
    WARN("Current Orientation: %s", inst->accelerometer->orientation);
    int rotation = _convertible_rotation_get(orientation);
 
-   if (inst->main_screen_cfg == NULL)
+   if (inst->randr2_ids == NULL)
       ERR("Screen not set.");
    else
    {
-      WARN("Setting screen rotation to %d", rotation);
-      inst->main_screen_cfg->rotation = rotation;
-      e_randr2_config_apply();
-   }
+      WARN("Setting screen(s) rotation to %d", rotation);
 
+      Eina_List *l;
+      const char *randr_id = NULL;
+      EINA_LIST_FOREACH(inst->randr2_ids, l, randr_id)
+      {
+         __fetch_and_rotate_screen__(randr_id, rotation);
+      }
+      free(randr_id);
+   }
+}
+
+/**
+ * Fetch a screen from its ID and rotate it according to the rotation parameter
+ * @param randr_id The randr2 id
+ * @param rotation The expected rotation
+ */
+void __fetch_and_rotate_screen__(const char* randr_id, int rotation) {
+   DBG("Working on screen %s", randr_id);
+   E_Randr2_Screen *rotatable_screen = e_randr2_screen_id_find(randr_id);
+   E_Config_Randr2_Screen *screen_randr_cfg = e_randr2_config_screen_find(rotatable_screen, e_randr2_cfg);
+   DBG("Screen %s is going to be rotated to %d", randr_id, rotation);
+   screen_randr_cfg->rotation = rotation;
+   e_randr2_config_apply();
+   DBG("Screen %s rotated to %d", randr_id, rotation);
 }
 
 int _convertible_rotation_get(const char *orientation)
