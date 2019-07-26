@@ -157,18 +157,13 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
       const char *randr_id = NULL;
       EINA_LIST_FOREACH(inst->randr2_ids, l, randr_id)
       {
-         __fetch_and_rotate_screen__(randr_id, rotation);
+         _fetch_and_rotate_screen(randr_id, rotation);
       }
-      free(randr_id);
+      free((void *)randr_id);
    }
 }
 
-/**
- * Fetch a screen from its ID and rotate it according to the rotation parameter
- * @param randr_id The randr2 id
- * @param rotation The expected rotation
- */
-void __fetch_and_rotate_screen__(const char* randr_id, int rotation) {
+void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
    DBG("Working on screen %s", randr_id);
    E_Randr2_Screen *rotatable_screen = e_randr2_screen_id_find(randr_id);
    E_Config_Randr2_Screen *screen_randr_cfg = e_randr2_config_screen_find(rotatable_screen, e_randr2_cfg);

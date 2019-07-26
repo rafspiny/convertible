@@ -83,4 +83,11 @@ on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldb
 void
 on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED);
 
+
+/**
+ * Fetch a screen from its ID and rotate it according to the rotation parameter
+ * @param randr_id The randr2 id
+ * @param rotation The expected rotation
+ */
+void _fetch_and_rotate_screen(const char* randr_id, int rotation);
 #endif

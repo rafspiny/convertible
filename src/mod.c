@@ -16,6 +16,8 @@ E_Module *convertible_module;
 // Logger
 int _convertible_log_dom;
 
+static Eldbus_Signal_Handler *dbus_property_changed_sh = NULL;
+
 /**
  * Prepare to fetch the new value for the DBUS property that has changed
  * */
@@ -44,22 +46,6 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    DBG("CONVERTIBLE convertible_delete");
    Instance *inst = data;
 
-   if (inst->accelerometer)
-   {
-      //        e_menu_post_deactivate_callback_set(inst->main_menu, NULL, NULL);
-      e_object_del(E_OBJECT(inst->accelerometer));
-   }
-
-   eina_list_free(inst->randr2_ids);
-
-   // TODO Not sure about these
-   //    if (inst->main_screen) {
-   //        e_object_del(E_OBJECT(inst->main_screen));
-   // }
-   //    if (inst->main_screen_cfg) {
-   //        e_object_del(E_OBJECT(inst->main_screen_cfg));
-   // }
-
    // Remove callbacks
    DBG("Removing callbacks");
    evas_object_event_callback_del(inst->o_button, EVAS_CALLBACK_DEL, convertible_del);
@@ -68,12 +54,21 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _rotation_signal_cb);
 
-   // TODO Should to this and wait for the release before continuing
-   //    accelerometer->pending_acc_crelease = eldbus_proxy_call(accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, NULL, -1, "");
+   if (inst->accelerometer)
+   {
+      //        e_menu_post_deactivate_callback_set(inst->main_menu, NULL, NULL);
+      e_object_del(E_OBJECT(inst->accelerometer));
+   }
 
    // dbus related stuff
+   // TODO Should to this and wait for the release before continuing
+   //    accelerometer->pending_acc_crelease = eldbus_proxy_call(accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, NULL, -1, "");
    DBG("Shutting down ELDBUS");
+   eldbus_signal_handler_unref(dbus_property_changed_sh);
    eldbus_shutdown();
+
+   // Screen related freeing
+   eina_list_free(inst->randr2_ids);
 
    DBG("Freeing Instance");
    free(inst);
@@ -154,7 +149,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    inst->randr2_ids = NULL;
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
       {
-      DBG("ID: %s", zone->id);
+      DBG("ID: %d", zone->id);
       DBG("NAME: %s", zone->name);
       DBG("RANDR2_ID: %s", zone->randr2_id);
       DBG("W: %d", zone->w);
@@ -169,9 +164,9 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
          char *randr2_id =  malloc(sizeof(char) * max_screen_length);
          int copied_cahrs = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
          if (copied_cahrs > max_screen_length)
-            ERR("Screen name %s has been truncated. Cannot handle screens.");
+            ERR("Screen name %s has been truncated. Cannot handle screens.", randr2_id);
          if (copied_cahrs < 0)
-            ERR("Can't copy the scren name");
+            ERR("Can't copy the screen name");
 
          inst->randr2_ids = eina_list_append(inst->randr2_ids, randr2_id);
          if (eina_error_get())
@@ -228,7 +223,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    }
    if (!inst->accelerometer->pending_orientation)
    {
-      ERR("Error: could not get property AccelerometerOrientation\n");
+      ERR("Error: could not get property AccelerometerOrientation");
    }
 
    // Claim the accelerometer
@@ -238,12 +233,10 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    if (!inst->accelerometer->pending_acc_claim)
    {
       ERR("Error: could not call ClaimAccelerometer\n");
-      // TODO Should probably use a GOTO to exit. Alternatively, disable the buttons on the icon.
    }
-   Eldbus_Signal_Handler *sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
+   dbus_property_changed_sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
                                                                "PropertiesChanged",
                                                                _cb_properties_changed, inst);
-   // TODO Handle sh
 
    //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
    DBG("convertible_create end");
