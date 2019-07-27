@@ -197,7 +197,10 @@ on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldb
       ERR("Error: %s %s", errname, errmsg);
       return;
    }
-   // TODO set the acquired field
+
+   // set the acquired field
+   Instance *inst = (Instance *) data;
+   inst->accelerometer->acquired = EINA_TRUE;
 }
 
 void
@@ -210,5 +213,7 @@ on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eld
       ERR("Error: %s %s", errname, errmsg);
       return;
    }
-   // TODO unset the acquired field
+   // unset the acquired field
+   Instance *inst = (Instance *) data;
+   inst->accelerometer->acquired = EINA_FALSE;
 }

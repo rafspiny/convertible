@@ -16,8 +16,6 @@ E_Module *convertible_module;
 // Logger
 int _convertible_log_dom;
 
-static Eldbus_Signal_Handler *dbus_property_changed_sh = NULL;
-
 /**
  * Prepare to fetch the new value for the DBUS property that has changed
  * */
@@ -47,24 +45,26 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    Instance *inst = data;
 
    // Remove callbacks
-   DBG("Removing callbacks");
+   DBG("Removing EDJE callbacks");
    evas_object_event_callback_del(inst->o_button, EVAS_CALLBACK_DEL, convertible_del);
    elm_layout_signal_callback_del(inst->o_button, "lock,rotation", "tablet", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _rotation_signal_cb);
 
+   // dbus related stuff
+   DBG("Removing handler for property changed");
+   eldbus_signal_handler_unref(inst->accelerometer->dbus_property_changed_sh);
+
+   DBG("Freeing resources");
+   // TODO Should to this and wait for the release before continuing
+   inst->accelerometer->pending_acc_crelease = eldbus_proxy_call(inst->accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, inst, -1, "");
    if (inst->accelerometer)
    {
-      //        e_menu_post_deactivate_callback_set(inst->main_menu, NULL, NULL);
       e_object_del(E_OBJECT(inst->accelerometer));
    }
 
-   // dbus related stuff
-   // TODO Should to this and wait for the release before continuing
-   //    accelerometer->pending_acc_crelease = eldbus_proxy_call(accelerometer->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, NULL, -1, "");
    DBG("Shutting down ELDBUS");
-   eldbus_signal_handler_unref(dbus_property_changed_sh);
    eldbus_shutdown();
 
    // Screen related freeing
@@ -117,6 +117,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
    inst->accelerometer->sensor_proxy = NULL;
    inst->accelerometer->sensor_proxy_properties = NULL;
+   inst->accelerometer->dbus_property_changed_sh = NULL;
    //    TODO Should initialize those as well
    //    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
    inst->locked_position = EINA_FALSE;
@@ -228,13 +229,13 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
    // Claim the accelerometer
    inst->accelerometer->pending_acc_claim = eldbus_proxy_call(inst->accelerometer->sensor_proxy, "ClaimAccelerometer",
-                                                              on_accelerometer_claimed, NULL, -1, "");
+                                                              on_accelerometer_claimed, inst, -1, "");
 
    if (!inst->accelerometer->pending_acc_claim)
    {
       ERR("Error: could not call ClaimAccelerometer\n");
    }
-   dbus_property_changed_sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
+   inst->accelerometer->dbus_property_changed_sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
                                                                "PropertiesChanged",
                                                                _cb_properties_changed, inst);
 

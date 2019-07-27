@@ -18,6 +18,7 @@ struct _DbusAccelerometer
    Eina_Bool acquired;
    Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
+   Eldbus_Signal_Handler *dbus_property_changed_sh;
 };
 
 /**
