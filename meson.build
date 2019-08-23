@@ -37,7 +37,9 @@ build_files = [
         'src/e-gadget-convertible.c',
         'src/accelerometer-orientation.h',
         'src/convertible_logging.h',
-        'src/convertible.h'
+        'src/convertible.h',
+        'src/e_mod_config.h',
+        'src/e_mod_config.c'
 ]
 
 inc = include_directories('.', '../../')

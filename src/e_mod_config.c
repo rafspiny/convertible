@@ -32,12 +32,12 @@ _econvertible_config_dd_new(void)
 {
    c_zone = E_CONFIG_DD_NEW("Econvertible_Zone_Config", Convertible_Zone_Config);
    E_CONFIG_VAL(c_zone, Convertible_Zone_Config, name, STR);
-   E_CONFIG_VAL(c_zone, Convertible_Zone_Config, follow_rotation, INT);
+   E_CONFIG_VAL(c_zone, Convertible_Zone_Config, follow_rotation, UCHAR);
 
    cd = E_CONFIG_DD_NEW("Convertible_Config", Convertible_Config);
 
-   E_CONFIG_VAL(cd, Convertible_Config, monitoring, STR);
-   E_CONFIG_VAL(cd, Convertible_Config, disable_keyboard_on_rotation, INT);
+   E_CONFIG_VAL(cd, Convertible_Config, monitoring, UCHAR);
+   E_CONFIG_VAL(cd, Convertible_Config, disable_keyboard_on_rotation, UCHAR);
    E_CONFIG_LIST(cd, Convertible_Config, rotatable_screen_configuration, c_zone);
 }
 
@@ -110,9 +110,9 @@ _create_data(E_Config_Dialog *cfg EINA_UNUSED)
 
    dialog_data = E_NEW(E_Config_Dialog_Data, 1);
    dialog_data->config = malloc(sizeof(Convertible_Config));
-   dialog_data->config->monitoring = EINA_TRUE;
-   dialog_data->config->disable_keyboard_on_rotation = EINA_TRUE;
-   dialog_data->config->rotatable_screen_configuration = NULL;
+   dialog_data->config->monitoring = _config->monitoring;
+   dialog_data->config->disable_keyboard_on_rotation = _config->disable_keyboard_on_rotation;
+   dialog_data->config->rotatable_screen_configuration = _config->rotatable_screen_configuration;
 
    // TODO Read from the Instance or the current Configuration object, the list of zones
 
@@ -120,6 +120,7 @@ _create_data(E_Config_Dialog *cfg EINA_UNUSED)
    char *randr2_id = NULL;
    EINA_LIST_FOREACH(screens, l, randr2_id)
    {
+      // TODO Should take the zone from the _config list and copy the `follow_rotation` value instead of using EINA_TRUE
       zone_config = E_NEW(Convertible_Zone_Config, 1);
       zone_config->name = randr2_id;
       zone_config->follow_rotation = EINA_TRUE;
