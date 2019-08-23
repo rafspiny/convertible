@@ -8,10 +8,15 @@
 #include "e-gadget-convertible.h"
 #include "convertible.h"
 #include "dbus_acceleration.h"
+#include "e_mod_config.h"
 
 
 // The main module reference
 E_Module *convertible_module;
+
+// Configuration
+static E_Config_DD *edd;
+EINTERN Convertible_Config *convertible_config;
 
 // Logger
 int _convertible_log_dom;
@@ -108,9 +113,9 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    DBG("creating instance");
    inst = E_NEW(Instance, 1);
    inst->accelerometer = malloc(sizeof(DbusAccelerometer));
-   inst->accelerometer->has_accelerometer = 0;
-   inst->accelerometer->monitoring = 0;
-   inst->accelerometer->acquired = 0;
+   inst->accelerometer->has_accelerometer = EINA_FALSE;
+   inst->accelerometer->monitoring = EINA_FALSE;
+   inst->accelerometer->acquired = EINA_FALSE;
 
    // The next line is probably redundant
    inst->accelerometer->orientation = malloc(sizeof(char) * 20);
@@ -170,10 +175,10 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
          DBG(zone->randr2_id);
          int max_screen_length = 100;
          char *randr2_id =  malloc(sizeof(char) * max_screen_length);
-         int copied_cahrs = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
-         if (copied_cahrs > max_screen_length)
+         int copied_chars = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
+         if (copied_chars > max_screen_length)
             ERR("Screen name %s has been truncated. Cannot handle screens.", randr2_id);
-         if (copied_cahrs < 0)
+         if (copied_chars < 0)
             ERR("Can't copy the screen name");
 
          inst->randr2_ids = eina_list_append(inst->randr2_ids, randr2_id);
@@ -269,15 +274,28 @@ e_modapi_init(E_Module *m)
    // It looks like this is not needed right now
    //    e_gadcon_provider_register(&_gadcon_class);
 
+   econvertible_config_init(NULL);
+
    INF("Setting the callback for creation");
    e_gadget_type_add("convertible", convertible_create, NULL);
 
+   e_configure_registry_category_add("extensions", 90, "Extensions", NULL,
+                                     "preferences-extensions");
+   e_configure_registry_item_add("extensions/convertible", 30, "convertible", NULL,
+                                 "preferences-desktop-convertible", e_int_config_convertible_module);
+
+//   evas_object_event_callback_add(inst->gadget, EVAS_CALLBACK_MOUSE_DOWN,
+//                                  _mouse_down_cb, inst);
    return m;
 }
 
 E_API int
 e_modapi_shutdown(E_Module *m EINA_UNUSED)
 {
+   INF("Freing configuration");
+   E_CONFIG_DD_FREE(edd);
+   E_FREE(convertible_config);
+
    INF("Shutting down the module");
    convertible_module = NULL;
    //    e_gadcon_provider_unregister(&_gadcon_class);
@@ -294,10 +312,6 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
 E_API int
 e_modapi_save(E_Module *m EINA_UNUSED)
 {
+   e_config_domain_save("module.convertible", edd, convertible_config);
    return 1;
 }
-
-
-Eldbus_Connection *dbus_conn;
-//static E_Config_DD *edd;
-struct Convertible_Config *convertible_config;
