@@ -153,6 +153,7 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
    {
       WARN("Setting screen(s) rotation to %d", rotation);
 
+
       Eina_List *l;
       const char *randr_id = NULL;
       EINA_LIST_FOREACH(inst->randr2_ids, l, randr_id)
@@ -168,9 +169,16 @@ void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
    E_Randr2_Screen *rotatable_screen = e_randr2_screen_id_find(randr_id);
    E_Config_Randr2_Screen *screen_randr_cfg = e_randr2_config_screen_find(rotatable_screen, e_randr2_cfg);
    DBG("Screen %s is going to be rotated to %d", randr_id, rotation);
-   screen_randr_cfg->rotation = rotation;
-   e_randr2_config_apply();
-   DBG("Screen %s rotated to %d", randr_id, rotation);
+
+   if (rotation == screen_randr_cfg->rotation)
+   {
+      WARN("Screen %s is already rotated to %d degrees", randr_id, rotation);
+   } else
+   {
+      screen_randr_cfg->rotation = rotation;
+      e_randr2_config_apply();
+      DBG("Screen %s rotated to %d", randr_id, rotation);
+   }
 }
 
 int _convertible_rotation_get(const char *orientation)
