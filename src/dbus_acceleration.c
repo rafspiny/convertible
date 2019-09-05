@@ -215,5 +215,9 @@ on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eld
    }
    // unset the acquired field
    Instance *inst = (Instance *) data;
-   inst->accelerometer->acquired = EINA_FALSE;
+   if (inst->accelerometer)
+   {
+      inst->accelerometer->acquired = EINA_FALSE;
+   }
+
 }

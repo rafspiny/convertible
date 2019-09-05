@@ -81,6 +81,7 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
 static void
 _gadget_created(void *data, Evas_Object *obj, void *event_info)
 {
+   DBG("Inside gadget created");
    Instance *inst = data;
 
    if (event_info != inst->o_button) return;
@@ -145,11 +146,13 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
 
    // Initialise screen part
-   INF("Looking for the main screen");
+   DBG("Looking for the main screen");
+   INF("E-comp");
+   INF("Zones: %d", eina_list_count(e_comp->zones));
    Eina_List *l;
    inst->randr2_ids = NULL;
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
-      {
+   {
       DBG("ID: %d", zone->id);
       DBG("NAME: %s", zone->name);
       DBG("RANDR2_ID: %s", zone->randr2_id);
@@ -158,9 +161,13 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
       // Get the screen for the zone
       E_Randr2_Screen *screen = e_randr2_screen_id_find(zone->randr2_id);
+      DBG("rot_90 %i", screen->info.can_rot_90);
+      DBG("namrandr2 id %s", zone->randr2_id);
       // Arbitrarily chosen a condition to check that rotation is enabled
       if (screen->info.can_rot_90 == EINA_TRUE)
       {
+         DBG("Rotatable");
+         DBG(zone->randr2_id);
          int max_screen_length = 100;
          char *randr2_id =  malloc(sizeof(char) * max_screen_length);
          int copied_cahrs = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
