@@ -32,12 +32,12 @@ _econvertible_config_dd_new(void)
 {
    c_zone = E_CONFIG_DD_NEW("Econvertible_Zone_Config", Convertible_Zone_Config);
    E_CONFIG_VAL(c_zone, Convertible_Zone_Config, name, STR);
-   E_CONFIG_VAL(c_zone, Convertible_Zone_Config, follow_rotation, UCHAR);
+   E_CONFIG_VAL(c_zone, Convertible_Zone_Config, follow_rotation, UINT);
 
    cd = E_CONFIG_DD_NEW("Convertible_Config", Convertible_Config);
 
    E_CONFIG_VAL(cd, Convertible_Config, monitoring, UCHAR);
-   E_CONFIG_VAL(cd, Convertible_Config, disable_keyboard_on_rotation, UCHAR);
+   E_CONFIG_VAL(cd, Convertible_Config, disable_keyboard_on_rotation, UINT);
    E_CONFIG_LIST(cd, Convertible_Config, rotatable_screen_configuration, c_zone);
 }
 
@@ -51,6 +51,9 @@ _config_set(Convertible_Config *config)
    Eina_List *l;
    Convertible_Zone_Config *zone_config;
 //   if ((config->disable_keyboard_on_rotation) && (_config->disable_keyboard_on_rotation != config->disable_keyboard_on_rotation))
+   DBG("config_set monitoring %d", config->monitoring);
+   DBG("config_set disable_keyboard_on_rotation %d", config->disable_keyboard_on_rotation);
+
    _config->disable_keyboard_on_rotation = config->disable_keyboard_on_rotation;
    _config->monitoring = config->monitoring;
 
@@ -115,6 +118,12 @@ _create_data(E_Config_Dialog *cfg EINA_UNUSED)
    dialog_data->config->rotatable_screen_configuration = _config->rotatable_screen_configuration;
 
    // TODO Read from the Instance or the current Configuration object, the list of zones
+   EINA_LIST_FOREACH(_config->rotatable_screen_configuration, l, zone_config)
+   {
+      DBG("NAME: %s", zone_config->name);
+      DBG("ROT: %d", zone_config->follow_rotation);
+   }
+
 
    Eina_List *screens = fetch_screen_list();
    char *randr2_id = NULL;
@@ -123,12 +132,14 @@ _create_data(E_Config_Dialog *cfg EINA_UNUSED)
       // TODO Should take the zone from the _config list and copy the `follow_rotation` value instead of using EINA_TRUE
       zone_config = E_NEW(Convertible_Zone_Config, 1);
       zone_config->name = randr2_id;
-      zone_config->follow_rotation = EINA_TRUE;
+      zone_config->follow_rotation = 1;
       dialog_data->config->rotatable_screen_configuration = eina_list_append(dialog_data->config->rotatable_screen_configuration, zone_config);
    }
 
    DBG("AFTER create_data");
    DBG("Value %d", eina_list_count(dialog_data->config->rotatable_screen_configuration));
+   DBG("monitoring %d", dialog_data->config->monitoring);
+   DBG("disable_keyboard_on_rotation %d", dialog_data->config->disable_keyboard_on_rotation);
    return dialog_data;
 }
 
@@ -158,6 +169,7 @@ static int
 _basic_apply_data(E_Config_Dialog *cfd EINA_UNUSED, E_Config_Dialog_Data *cfdata)
 {
    // TODO Finish it
+   DBG("_basic_apply_data");
    _config_set(cfdata->config);
    return 1;
 }
@@ -175,12 +187,15 @@ _basic_create_widgets(E_Config_Dialog *cfd EINA_UNUSED, Evas *evas,
                       E_Config_Dialog_Data *cfdata)
 {
    DBG("BEFORE basci_create_widget");
+   DBG("cfdata->config->disable_keyboard_on_rotation %d", cfdata->config->disable_keyboard_on_rotation);
+   DBG("cfdata->config->monitoring %d", cfdata->config->monitoring);
+
    Evas_Object *o, *list_item_screen, *evas_option_input_disable, *evas_label_section_screens;
-   Evas_Object *screen_list;
+   Evas_Object *screen_list = NULL;
 
    o = e_widget_list_add(evas, 0, 0);
 
-   evas_option_input_disable = e_widget_check_add(evas, "Disable input when rotated", &cfdata->config->disable_keyboard_on_rotation);
+   evas_option_input_disable = e_widget_check_add(evas, "Disable input when rotated", &(cfdata->config->disable_keyboard_on_rotation));
    e_widget_list_object_append(o, evas_option_input_disable, 0, 0, 0);
 
    evas_label_section_screens = e_widget_framelist_add(evas, "Rotatable zones", 0);
@@ -193,6 +208,7 @@ _basic_create_widgets(E_Config_Dialog *cfd EINA_UNUSED, Evas *evas,
    {
       screen_name = zone_config->name;
       DBG("Zone %s", screen_name);
+      DBG("ROTATION %d", zone_config->follow_rotation);
       // Get the configuration for the current zone
       Eina_List *current_node = eina_list_search_unsorted_list(cfdata->config->rotatable_screen_configuration, _cb_list_zone_comparator, screen_name);
       if (current_node == NULL)
@@ -254,8 +270,8 @@ econvertible_config_init(const void *userdata)
    if (!_config)
    {
       _config = E_NEW(Convertible_Config, 1);
-      _config->disable_keyboard_on_rotation = EINA_TRUE;
-      _config->monitoring = EINA_TRUE;
+      _config->disable_keyboard_on_rotation = 1;
+      _config->monitoring = 1;
       _config->rotatable_screen_configuration = NULL;
    }
 

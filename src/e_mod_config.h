@@ -13,7 +13,7 @@ typedef struct _Convertible_Zone_Config Convertible_Zone_Config;
 struct _Convertible_Zone_Config
 {
    char *name;
-   Eina_Bool follow_rotation;
+   int follow_rotation;
 };
 
 // Definition of the data structure to hold the gadget configuration
@@ -21,8 +21,8 @@ typedef struct _Convertible_Config Convertible_Config;
 
 struct _Convertible_Config
 {
-   Eina_Bool monitoring;
-   Eina_Bool disable_keyboard_on_rotation;
+   int monitoring;
+   int disable_keyboard_on_rotation;
    Eina_List *rotatable_screen_configuration;
 };
 
