@@ -2,7 +2,7 @@ project('convertible', 'c',
         version: '0.1',
         license: 'MPL 2',
         default_options: [ 'c_std=gnu99', 'warning_level=2' ],
-        meson_version: '>= 0.47.0')
+        meson_version: '>= 0.50.0')
 pkgconfig = import('pkgconfig')
 cc = meson.get_compiler('c')
 

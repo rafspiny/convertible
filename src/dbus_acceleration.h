@@ -1,5 +1,6 @@
 #include <Ecore.h>
 #include <Elementary.h>
+#include <e.h>
 
 #ifndef EFL_DBUS_ACCELERATION
 #define EFL_DBUS_ACCELERATION
@@ -20,6 +21,16 @@ struct _DbusAccelerometer
    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
    Eldbus_Signal_Handler *dbus_property_changed_sh;
 };
+
+DbusAccelerometer* accelerometer_dbus;
+
+/**
+ * Fetch the DBUS interfaces and fill the DbusAccelerometer struct
+ * */
+DbusAccelerometer* sensor_proxy_init();
+
+
+void sensor_proxy_shutdown();
 
 /**
  * Helper to get the interface
