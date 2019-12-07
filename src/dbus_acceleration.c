@@ -25,7 +25,6 @@ DbusAccelerometer* sensor_proxy_init() {
 
    accelerometer_dbus->sensor_proxy = NULL;
    accelerometer_dbus->sensor_proxy_properties = NULL;
-   accelerometer_dbus->dbus_property_changed_sh = NULL;
 
    DBG("Before eldbus initialization");
    int initialization = eldbus_init();

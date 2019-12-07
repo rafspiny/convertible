@@ -6,7 +6,6 @@
 #include "convertible.h"
 
 DbusAccelerometer* dbus_accelerometer;
-static Instance *instance = NULL;
 static Eina_List *instances;
 
 void _rotation_signal_cb(void *data EINA_UNUSED, Evas_Object *obj EINA_UNUSED, const char *sig EINA_UNUSED,
@@ -60,18 +59,20 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
 //   free(inst);
 
    // Remove callbacks
-   DBG("Removing EDJE callbacks");
+   DBG("Removing EDJE callbacks %p", inst);
    evas_object_event_callback_del(inst->o_button, EVAS_CALLBACK_DEL, convertible_del);
    elm_layout_signal_callback_del(inst->o_button, "lock,rotation", "tablet", _rotation_signal_cb);
    elm_layout_signal_callback_del(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
-   elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _rotation_signal_cb);
-   elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _rotation_signal_cb);
-
-   if (instances) return;
+   elm_layout_signal_callback_del(inst->o_button, "enable,keyboard", "keyboard", _keyboard_signal_cb);
+   elm_layout_signal_callback_del(inst->o_button, "disable,keyboard", "keyboard", _keyboard_signal_cb);
+   INF("Callbacks removed on obj %p on instance %p", inst->o_button, inst);
 
    // Remove dbus stuff
-   INF("Removing signal handler bbus_property_changed_sh");
-   eldbus_signal_handler_del(instance->accelerometer->dbus_property_changed_sh);
+   INF("Removing signal handler dbus_property_changed_sh");
+   eldbus_signal_handler_del(inst->dbus_property_changed_sh);
+   INF("Signal handler %p removed from %p", inst->dbus_property_changed_sh, inst);
+
+   if (instances) return;
 
 //   // Screen related freeing
 //   eina_list_free(inst->randr2_ids);
@@ -96,7 +97,7 @@ _cb_properties_changed(void *data, const Eldbus_Message *msg)
       ERR("Error getting data from properties changed signal.");
    }
    // Given that the property changed, let's get the new value
-   Eldbus_Pending *pending_operation = eldbus_proxy_property_get(instance->accelerometer->sensor_proxy,
+   Eldbus_Pending *pending_operation = eldbus_proxy_property_get(inst->accelerometer->sensor_proxy,
                              "AccelerometerOrientation",
                              on_accelerometer_orientation, inst);
    if (!pending_operation)
@@ -121,34 +122,35 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    if (*id == 0) *id = 1;
 
    DBG("creating instance");
-   instance = E_NEW(Instance, 1);
-   DBG("Created instance %p", instance);
+   Instance *inst = E_NEW(Instance, 1);
+   DBG("Created instance %p", inst);
    DBG("Created instance with dbus %p", dbus_accelerometer);
-   instance->accelerometer = dbus_accelerometer;
+   inst->accelerometer = dbus_accelerometer;
 
-   instance->accelerometer->pending_orientation = eldbus_proxy_property_get(instance->accelerometer->sensor_proxy,
-                                                                  "AccelerometerOrientation",
-                                                                  on_accelerometer_orientation, instance);
-   if (!instance->accelerometer->pending_orientation)
-   {
-      ERR("Error: could not get property AccelerometerOrientation");
-   }
+//   inst->accelerometer->pending_orientation = eldbus_proxy_property_get(inst->accelerometer->sensor_proxy,
+//                                                                  "AccelerometerOrientation",
+//                                                                  on_accelerometer_orientation, inst);
+//   if (!inst->accelerometer->pending_orientation)
+//   {
+//      ERR("Error: could not get property AccelerometerOrientation");
+//   }
 
-   instance->accelerometer->dbus_property_changed_sh = eldbus_proxy_signal_handler_add(instance->accelerometer->sensor_proxy_properties,
+   inst->dbus_property_changed_sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
                                                                              "PropertiesChanged",
-                                                                             _cb_properties_changed, instance);
-   if (!instance->accelerometer->dbus_property_changed_sh)
+                                                                             _cb_properties_changed, inst);
+   if (!inst->dbus_property_changed_sh)
    {
       ERR("Error: could not add the signal handler for PropertiesChanged");
    }
+   INF("Signal handler %p added on %p", inst->dbus_property_changed_sh, inst);
 
    // TODO Should initialize those as well
    // Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
-   instance->locked_position = EINA_FALSE;
-   instance->disabled_keyboard = EINA_FALSE;
+   inst->locked_position = EINA_FALSE;
+   inst->disabled_keyboard = EINA_FALSE;
 
    // TODO Remove these. They are a refuse from the copy and paste of the start (or wireless) module
-   //    instance->site = parent;
+   //    inst->site = parent;
    //    o = elm_layout_add(parent);
 
    DBG("setting edje theme layer");
@@ -162,17 +164,17 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
                            "e/modules/convertible/main");
    //edje_object_signal_emit(o, "e,state,unfocused", "e");
 
-   instance->o_button = o;
-   evas_object_size_hint_aspect_set(o, EVAS_ASPECT_CONTROL_BOTH, 1, 1);
-   //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, instance);
+   inst->o_button = o;
+   evas_object_size_hint_aspect_set(inst->o_button, EVAS_ASPECT_CONTROL_BOTH, 1, 1);
+   //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
 
    // Initialise screen part
    DBG("Looking for the main screen");
    INF("E-comp");
    INF("Zones: %d", eina_list_count(e_comp->zones));
    Eina_List *l;
-   instance->randr2_ids = NULL;
-   eina_list_free(instance->randr2_ids);
+   inst->randr2_ids = NULL;
+   eina_list_free(inst->randr2_ids);
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
       {
       DBG("ID: %d", zone->id);
@@ -200,7 +202,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 
          INF("Screen name: %s", randr2_id);
 
-         instance->randr2_ids = eina_list_append(instance->randr2_ids, randr2_id);
+         inst->randr2_ids = eina_list_append(inst->randr2_ids, randr2_id);
          if (eina_error_get())
             {
             ERR("Memory is low. List allocation failed.");
@@ -208,32 +210,33 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
          }
       }
 
-   if (instance->randr2_ids == NULL)
+   if (inst->randr2_ids == NULL)
       {
       ERR("Unable to find rotatable screens");
       }
 
-   DBG("%d screen(s) has been found", eina_list_count(instance->randr2_ids));
+   DBG("%d screen(s) has been found", eina_list_count(inst->randr2_ids));
 
    // Adding callback for EDJE object
    INF("Adding callback for creation and other events from EDJE");
-   evas_object_smart_callback_add(parent, "gadget_created", _gadget_created, instance);
-   evas_object_event_callback_add(o, EVAS_CALLBACK_DEL, convertible_del, instance);
-   elm_layout_signal_callback_add(o, "lock,rotation", "tablet", _rotation_signal_cb, instance);
-   elm_layout_signal_callback_add(o, "unlock,rotation", "tablet", _rotation_signal_cb, instance);
-   elm_layout_signal_callback_add(o, "enable,keyboard", "keyboard", _keyboard_signal_cb, instance);
-   elm_layout_signal_callback_add(o, "disable,keyboard", "keyboard", _keyboard_signal_cb, instance);
+   evas_object_smart_callback_add(parent, "gadget_created", _gadget_created, inst);
+   evas_object_event_callback_add(inst->o_button, EVAS_CALLBACK_DEL, convertible_del, inst);
+   elm_layout_signal_callback_add(inst->o_button, "lock,rotation", "tablet", _rotation_signal_cb, inst);
+   elm_layout_signal_callback_add(inst->o_button, "unlock,rotation", "tablet", _rotation_signal_cb, inst);
+   elm_layout_signal_callback_add(inst->o_button, "enable,keyboard", "keyboard", _keyboard_signal_cb, inst);
+   elm_layout_signal_callback_add(inst->o_button, "disable,keyboard", "keyboard", _keyboard_signal_cb, inst);
+   INF("Callbacks added to obj %p on instance %p", inst->o_button, inst);
 
-   // Bringing in the instance ref. It is useful in the delete callback
+   // Bringing in the inst ref. It is useful in the delete callback
    // TODO we may remove this one. The delete is done here. There should be no need to kep this reference.
-//   convertible_module->data = instance;
+//   convertible_module->data = inst;
 
-   //    do_orient(instance, orient, e_gadget_site_anchor_get(parent));
+   //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
    DBG("convertible_create end");
 
-   instances = eina_list_append(instances, instance);
+   instances = eina_list_append(instances, inst);
 
-   return o;
+   return inst->o_button;
 }
 
 void convertible_gadget_init(DbusAccelerometer* accelerometer) {
@@ -244,6 +247,6 @@ void convertible_gadget_init(DbusAccelerometer* accelerometer) {
 void covnertible_gadget_shutdown()
 {
    // dbus related stuff
-   DBG("Removing handler for property changed");
-   eldbus_signal_handler_unref(instance->accelerometer->dbus_property_changed_sh);
+//   DBG("Removing handler for property changed");
+//   eldbus_signal_handler_unref(inst->accelerometer->dbus_property_changed_sh);
 }
