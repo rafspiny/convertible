@@ -39,9 +39,7 @@ e_modapi_init(E_Module *m)
    //    e_gadcon_provider_register(&_gadcon_class);
    char theme_overlay_path[4096];
    snprintf(theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
-   DBG(theme_overlay_path);
    elm_theme_extension_add(NULL, theme_overlay_path);
-   DBG("theme overlay set");
 
    econvertible_config_init(NULL);
 
@@ -51,7 +49,7 @@ e_modapi_init(E_Module *m)
    INF("Setting the callback for gadget creation");
    convertible_gadget_init(accelerometer);
 
-   INF("Creating emenu entries for settings");
+   INF("Creating menu entries for settings");
    e_configure_registry_category_add("extensions", 90, "Extensions", NULL,
                                      "preferences-extensions");
    e_configure_registry_item_add("extensions/convertible", 30, "convertible", NULL,
@@ -65,12 +63,17 @@ e_modapi_init(E_Module *m)
 E_API int
 e_modapi_shutdown(E_Module *m EINA_UNUSED)
 {
-   INF("Freing configuration");
+   INF("Freeing configuration");
    E_CONFIG_DD_FREE(edd);
    E_FREE(convertible_config);
+   
+   e_configure_registry_item_del("extensions/convertible");
 
    // Shutdown Dbus
    sensor_proxy_shutdown();
+
+   // Shutting down the gadget
+   convertible_gadget_shutdown();
 
    INF("Shutting down the module");
    convertible_module = NULL;

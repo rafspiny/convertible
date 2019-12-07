@@ -33,7 +33,7 @@ DbusAccelerometer* sensor_proxy_init() {
       ERR("Unable to initialise ELDBUS");
    }
 
-   INF("Before get dbus interface");
+   INF("Getting dbus interfaces");
    accelerometer_dbus->sensor_proxy = get_dbus_interface(EFL_DBUS_ACC_IFACE);
    accelerometer_dbus->sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
    if (accelerometer_dbus->sensor_proxy == NULL)
@@ -63,12 +63,14 @@ DbusAccelerometer* sensor_proxy_init() {
 
 void sensor_proxy_shutdown()
 {
-   DBG("Freeing resources");
+   INF("Freeing convertible resources");
    // TODO Should to this and wait for the release before continuing
    accelerometer_dbus->pending_acc_crelease = eldbus_proxy_call(accelerometer_dbus->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, accelerometer_dbus, -1, "");
    if (accelerometer_dbus)
    {
       e_object_del(E_OBJECT(accelerometer_dbus));
+      free(accelerometer_dbus);
+      accelerometer_dbus = NULL;
    }
 
    DBG("Shutting down ELDBUS");
@@ -79,7 +81,7 @@ int _convertible_rotation_get(const char *orientation);
 
 Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 {
-   INF("Working on interface: %s", IFACE);
+   DBG("Working on interface: %s", IFACE);
    Eldbus_Connection *conn;
    Eldbus_Object *obj;
    Eldbus_Proxy *sensor_proxy;
@@ -96,7 +98,7 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
    }
    else
    {
-      INF("Object fetched.");
+      DBG("Object fetched.");
    }
    sensor_proxy = eldbus_proxy_get(obj, IFACE);
    if (!sensor_proxy)
@@ -105,7 +107,7 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
    }
    else
    {
-      INF("Proxy fetched");
+      DBG("Proxy fetched");
    }
 
    return sensor_proxy;
@@ -187,13 +189,13 @@ on_has_accelerometer(void *data, const Eldbus_Message *msg, Eldbus_Pending *pend
    access_bool_property(msg, &variant, &has_accelerometer);
    DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
    accelerometer->has_accelerometer = has_accelerometer;
-   INF("Has Accelerometer: %d", accelerometer->has_accelerometer);
+   DBG("Has Accelerometer: %d", accelerometer->has_accelerometer);
 }
 
 void
 on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)
 {
-   INF("on_accelerometer_orientation entered");
+   INF("New orientation received");
    Instance *inst = (Instance *) data;
 
    if (inst->locked_position == EINA_TRUE)
@@ -215,7 +217,7 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
 
    access_string_property(msg, &variant, &orientation);
    inst->accelerometer->orientation = orientation;
-   WARN("Current Orientation: %s", inst->accelerometer->orientation);
+   DBG("Current Orientation: %s", inst->accelerometer->orientation);
    int rotation = _convertible_rotation_get(orientation);
 
    if (inst->randr2_ids == NULL)
@@ -262,7 +264,7 @@ int _convertible_rotation_get(const char *orientation)
          rotation = 90;
    if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
          rotation = 180;
-   WARN("Rotation: %d", rotation);
+   DBG("Rotation: %d", rotation);
    return rotation;
    }
 
