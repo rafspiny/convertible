@@ -6,10 +6,82 @@
 #include "dbus_acceleration.h"
 #include "convertible.h"
 
+DbusAccelerometer* sensor_proxy_init() {
+   // Initialise DBUS component
+   if (accelerometer_dbus != NULL)
+   {
+      WARN("We already have a struct filled");
+      return accelerometer_dbus;
+   }
+   accelerometer_dbus  = malloc(sizeof(DbusAccelerometer));
+   // TODO Double check if we need these initializations
+   accelerometer_dbus->has_accelerometer = EINA_FALSE;
+   accelerometer_dbus->monitoring = EINA_FALSE;
+   accelerometer_dbus->acquired = EINA_FALSE;
+
+   // The next line is probably redundant
+   accelerometer_dbus->orientation = malloc(sizeof(char) * 20);
+   snprintf(accelerometer_dbus->orientation, sizeof("undefined"), "undefined");
+
+   accelerometer_dbus->sensor_proxy = NULL;
+   accelerometer_dbus->sensor_proxy_properties = NULL;
+
+   DBG("Before eldbus initialization");
+   int initialization = eldbus_init();
+   if (initialization == EXIT_FAILURE)
+   {
+      ERR("Unable to initialise ELDBUS");
+   }
+
+   INF("Getting dbus interfaces");
+   accelerometer_dbus->sensor_proxy = get_dbus_interface(EFL_DBUS_ACC_IFACE);
+   accelerometer_dbus->sensor_proxy_properties = get_dbus_interface(ELDBUS_FDO_INTERFACE_PROPERTIES);
+   if (accelerometer_dbus->sensor_proxy == NULL)
+   {
+      ERR("Unable to get the proxy for interface %s", EFL_DBUS_ACC_IFACE);
+   }
+
+   accelerometer_dbus->pending_has_orientation = eldbus_proxy_property_get(accelerometer_dbus->sensor_proxy,
+                                                                            "HasAccelerometer", on_has_accelerometer,
+                                                                            accelerometer_dbus);
+   if (!accelerometer_dbus->pending_has_orientation)
+   {
+      ERR("Error: could not get property HasAccelerometer");
+   }
+
+   // Claim the accelerometer_dbus
+   accelerometer_dbus->pending_acc_claim = eldbus_proxy_call(accelerometer_dbus->sensor_proxy, "ClaimAccelerometer",
+                                                              on_accelerometer_claimed, accelerometer_dbus, -1, "");
+
+   if (!accelerometer_dbus->pending_acc_claim)
+   {
+      ERR("Error: could not call ClaimAccelerometer\n");
+   }
+
+   return accelerometer_dbus;
+}
+
+void sensor_proxy_shutdown()
+{
+   INF("Freeing convertible resources");
+   // TODO Should to this and wait for the release before continuing
+   accelerometer_dbus->pending_acc_crelease = eldbus_proxy_call(accelerometer_dbus->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, accelerometer_dbus, -1, "");
+   if (accelerometer_dbus)
+   {
+      e_object_del(E_OBJECT(accelerometer_dbus));
+      free(accelerometer_dbus);
+      accelerometer_dbus = NULL;
+   }
+
+   DBG("Shutting down ELDBUS");
+   eldbus_shutdown();
+}
+
 int _convertible_rotation_get(const char *orientation);
 
 Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 {
+   DBG("Working on interface: %s", IFACE);
    Eldbus_Connection *conn;
    Eldbus_Object *obj;
    Eldbus_Proxy *sensor_proxy;
@@ -26,7 +98,7 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
    }
    else
    {
-      INF("Object fetched.");
+      DBG("Object fetched.");
    }
    sensor_proxy = eldbus_proxy_get(obj, IFACE);
    if (!sensor_proxy)
@@ -35,7 +107,7 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
    }
    else
    {
-      INF("Proxy fetched");
+      DBG("Proxy fetched");
    }
 
    return sensor_proxy;
@@ -115,14 +187,15 @@ on_has_accelerometer(void *data, const Eldbus_Message *msg, Eldbus_Pending *pend
    }
 
    access_bool_property(msg, &variant, &has_accelerometer);
-   Instance *inst = (Instance *) data;
-   inst->accelerometer->has_accelerometer = has_accelerometer;
-   WARN("Has Accelerometer: %d", inst->accelerometer->has_accelerometer);
+   DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
+   accelerometer->has_accelerometer = has_accelerometer;
+   DBG("Has Accelerometer: %d", accelerometer->has_accelerometer);
 }
 
 void
 on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)
 {
+   INF("New orientation received");
    Instance *inst = (Instance *) data;
 
    if (inst->locked_position == EINA_TRUE)
@@ -144,7 +217,7 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
 
    access_string_property(msg, &variant, &orientation);
    inst->accelerometer->orientation = orientation;
-   WARN("Current Orientation: %s", inst->accelerometer->orientation);
+   DBG("Current Orientation: %s", inst->accelerometer->orientation);
    int rotation = _convertible_rotation_get(orientation);
 
    if (inst->randr2_ids == NULL)
@@ -191,7 +264,7 @@ int _convertible_rotation_get(const char *orientation)
          rotation = 90;
    if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
          rotation = 180;
-   WARN("Rotation: %d", rotation);
+   DBG("Rotation: %d", rotation);
    return rotation;
    }
 
@@ -200,15 +273,17 @@ on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldb
 {
    const char *errname, *errmsg;
 
+   INF("Going to claim the accelerometer_dbus");
    if (eldbus_message_error_get(msg, &errname, &errmsg))
    {
       ERR("Error: %s %s", errname, errmsg);
       return;
    }
+   INF("Accelerometer claimed");
 
    // set the acquired field
-   Instance *inst = (Instance *) data;
-   inst->accelerometer->acquired = EINA_TRUE;
+   DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
+   accelerometer->acquired = EINA_TRUE;
 }
 
 void
@@ -216,16 +291,18 @@ on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eld
 {
    const char *errname, *errmsg;
 
+   INF("Going to release the accelerometer_dbus");
    if (eldbus_message_error_get(msg, &errname, &errmsg))
    {
       ERR("Error: %s %s", errname, errmsg);
       return;
    }
+   INF("Accelerometer released");
    // unset the acquired field
-   Instance *inst = (Instance *) data;
-   if (inst->accelerometer)
+   DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
+   if (accelerometer)
    {
-      inst->accelerometer->acquired = EINA_FALSE;
+      accelerometer->acquired = EINA_FALSE;
    }
 
 }
