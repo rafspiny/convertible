@@ -155,6 +155,13 @@ access_bool_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, E
       res = EINA_FALSE;
    }
    type = eldbus_message_iter_signature_get((*variant));
+   if (type == NULL)
+   {
+      WARN("It is a complex type, not handle yet.");
+      res = EINA_FALSE;
+      return res;
+   }
+
    if (type[1])
    {
       WARN("It is a complex type, not handle yet.");
