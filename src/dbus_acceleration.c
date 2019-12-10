@@ -123,6 +123,13 @@ Eina_Bool access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter 
       WARN("Error getting arguments.");
       res = EINA_FALSE;
    }
+   if (type == NULL)
+   {
+      WARN("Unable to get the type.");
+      res = EINA_FALSE;
+      return res;
+   }
+   
    type = eldbus_message_iter_signature_get((*variant));
    if (type[1])
    {
@@ -157,7 +164,7 @@ access_bool_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, E
    type = eldbus_message_iter_signature_get((*variant));
    if (type == NULL)
    {
-      WARN("It is a complex type, not handle yet.");
+      WARN("Unable to get the type.");
       res = EINA_FALSE;
       return res;
    }
