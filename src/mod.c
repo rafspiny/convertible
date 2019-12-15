@@ -15,8 +15,8 @@
 E_Module *convertible_module;
 
 // Configuration
-static E_Config_DD *edd;
-EINTERN Convertible_Config *convertible_config;
+extern Convertible_Config *convertible_config;
+extern E_Config_DD *edd;
 
 // Logger
 int _convertible_log_dom;
@@ -64,9 +64,8 @@ E_API int
 e_modapi_shutdown(E_Module *m EINA_UNUSED)
 {
    INF("Freeing configuration");
-   E_CONFIG_DD_FREE(edd);
-   E_FREE(convertible_config);
-   
+   econvertible_config_shutdown();
+
    e_configure_registry_item_del("extensions/convertible");
 
    // Shutdown Dbus
@@ -91,6 +90,9 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
 E_API int
 e_modapi_save(E_Module *m EINA_UNUSED)
 {
-   e_config_domain_save("module.convertible", edd, convertible_config);
+   if (convertible_config)
+   {
+      e_config_domain_save("module.convertible", edd, convertible_config);
+   }
    return 1;
 }

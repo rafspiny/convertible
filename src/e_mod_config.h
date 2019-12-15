@@ -21,9 +21,8 @@ typedef struct _Convertible_Config Convertible_Config;
 
 struct _Convertible_Config
 {
-   int monitoring;
    int disable_keyboard_on_rotation;
-   Eina_List *rotatable_screen_configuration;
+//   Eina_List *rotatable_screen_configuration;
 };
 
 // As far as I understand, this structure should hold data useful for the configuration and a pointer to
@@ -36,7 +35,8 @@ struct _E_Config_Dialog_Data
 };
 
 E_Config_Dialog* e_int_config_convertible_module(Evas_Object *comp, const char *p);
-void econvertible_config_init(const void *userdata);
+void econvertible_config_init();
+void econvertible_config_shutdown();
 //E_Config_Dialog* econvertible_config_init(Evas_Object *comp, const char*p);
 void _menu_new(Instance *inst, Evas_Event_Mouse_Down *ev);
 void _mouse_down_cb(void *data, Evas *evas EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event);
