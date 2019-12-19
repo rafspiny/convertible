@@ -1,10 +1,12 @@
 //
 // Created by raffaele on 01/05/19.
 //
+//#include <Ecore_X.h>
 #include "convertible_logging.h"
 #include "accelerometer-orientation.h"
 #include "dbus_acceleration.h"
 #include "convertible.h"
+#include "input_rotation.h"
 
 DbusAccelerometer* sensor_proxy_init() {
    // Initialise DBUS component
@@ -115,7 +117,7 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 
 Eina_Bool access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, char **string_property_value)
 {
-   const char *type;
+   const char *type = NULL;
    Eina_Bool res = EINA_TRUE;
 
    if (!eldbus_message_arguments_get(msg, "v", variant))
@@ -123,6 +125,7 @@ Eina_Bool access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter 
       WARN("Error getting arguments.");
       res = EINA_FALSE;
    }
+   type = eldbus_message_iter_signature_get((*variant));
    if (type == NULL)
    {
       WARN("Unable to get the type.");
@@ -251,6 +254,63 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
    }
 }
 
+int _convertible_rotation_get(const char *orientation)
+{
+   int rotation = 0;
+   // TODO Should really check for inst->main_screen->info.can_rot_x
+   if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
+      rotation = 270;
+   if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
+      rotation = 90;
+   if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
+      rotation = 180;
+   DBG("Rotation: %d", rotation);
+   return rotation;
+}
+
+const float * _get_matrix_rotation_transformation(int rotation)
+{
+   const float *transformation;
+   switch (rotation) {
+      case 90:
+         transformation = MATRIX_ROTATION_90;
+         break;
+      case 180:
+         transformation = MATRIX_ROTATION_180;
+         break;
+      case 270:
+         transformation = MATRIX_ROTATION_270;
+         break;
+      default:
+         transformation = MATRIX_ROTATION_IDENTITY;
+      }
+   return transformation;
+}
+
+int _fetch_X_device_input_number()
+{
+   // I should get the touchscreen associated with the screen probably by looking at the classes of the input devices
+   // I need to submit my patch to add getters for other XIDeviceInfo fields, like raster mentioned in his commit.
+   const char *dev_name = NULL;
+   char **property_name = NULL;
+   int dev_num = ecore_x_input_device_num_get();
+
+   for (int dev_counter=0; dev_counter<dev_num; dev_counter++)
+   {
+      dev_name = ecore_x_input_device_name_get(dev_counter);
+      //   "Virtual core pointer"
+      if (strcmp(dev_name, core_pointer_name) == 0)
+      {
+         int num_properties;
+         property_name = ecore_x_input_device_properties_list(dev_counter, &num_properties);
+         if (strcmp(*property_name, CTM_name) == 0)
+            return dev_counter;
+      }
+   }
+
+   return -1;
+}
+
 void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
    DBG("Working on screen %s", randr_id);
    E_Randr2_Screen *rotatable_screen = e_randr2_screen_id_find(randr_id);
@@ -265,22 +325,38 @@ void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
       screen_randr_cfg->rotation = rotation;
       e_randr2_config_apply();
       DBG("Screen %s rotated to %d", randr_id, rotation);
+
+      int x_dev_num = _fetch_X_device_input_number();
+      if (x_dev_num == -1)
+      {
+         ERR("Unable to find a pointer device with coordinate transformation capabilities");
+         return;
+      }
+      DBG("Rotating input number %d", x_dev_num);
+
+      int num_ret, unit_size_ret;
+      Ecore_X_Atom format_ret;
+      char *result = NULL;
+      TransformationMatrix *matrix = malloc(sizeof(TransformationMatrix));
+      result = ecore_x_input_device_property_get(x_dev_num, CTM_name, &num_ret, &format_ret, &unit_size_ret);
+      DBG("Rotating input");
+      // format_ret of 116 -> ECORE_X_ATOM_FLOAT
+      // num_ret of 9 -> 9 (float) to read
+      // unit_size_ret of 32 -> each float is 32 bits
+      memcpy(matrix->values, result, sizeof(matrix->values));
+      for (int i = 0; i < 9; ++i)
+      {
+         DBG("Matrix pos %d -> %f", i, matrix->values[i]);
+      }
+
+      const float * rotation_matrix_2d = _get_matrix_rotation_transformation(rotation);
+      memcpy(matrix->values, rotation_matrix_2d, sizeof(*rotation_matrix_2d));
+
+      ecore_x_input_device_property_set(x_dev_num, CTM_name, matrix->values, num_ret, format_ret, unit_size_ret);
+
+      DBG("Input device %d rotated to %d", x_dev_num, rotation);
    }
 }
-
-int _convertible_rotation_get(const char *orientation)
-   {
-   int rotation = 0;
-   // TODO Should really check for inst->main_screen->info.can_rot_x
-   if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
-         rotation = 270;
-   if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
-         rotation = 90;
-   if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
-         rotation = 180;
-   DBG("Rotation: %d", rotation);
-   return rotation;
-   }
 
 void
 on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldbus_Pending *pending EINA_UNUSED)
