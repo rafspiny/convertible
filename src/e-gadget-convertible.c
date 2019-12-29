@@ -55,7 +55,6 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    Instance *inst = data;
 
    instances = eina_list_remove(instances, inst);
-//   free(inst);
 
    // Remove callbacks
    DBG("Removing EDJE callbacks");
@@ -163,7 +162,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    inst->randr2_ids = NULL;
    eina_list_free(inst->randr2_ids);
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
-      {
+   {
       DBG("ID: %d", zone->id);
       DBG("NAME: %s", zone->name);
       DBG("RANDR2_ID: %s", zone->randr2_id);
@@ -179,7 +178,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
          {
          DBG("Rotatable");
          DBG(zone->randr2_id);
-         int max_screen_length = 100;
+         int max_screen_length = 300;
          char *randr2_id =  malloc(sizeof(char) * max_screen_length);
          int copied_chars = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
          if (copied_chars > max_screen_length)
@@ -195,12 +194,12 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
             ERR("Memory is low. List allocation failed.");
             }
          }
-      }
+   }
 
    if (inst->randr2_ids == NULL)
-      {
+   {
       ERR("Unable to find rotatable screens");
-      }
+   }
 
    DBG("%d screen(s) has been found", eina_list_count(inst->randr2_ids));
 
@@ -213,10 +212,6 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    elm_layout_signal_callback_add(inst->o_button, "enable,keyboard", "keyboard", _keyboard_signal_cb, inst);
    elm_layout_signal_callback_add(inst->o_button, "disable,keyboard", "keyboard", _keyboard_signal_cb, inst);
 
-   // Bringing in the inst ref. It is useful in the delete callback
-   // TODO we may remove this one. The delete is done here. There should be no need to kep this reference.
-//   convertible_module->data = inst;
-
    //    do_orient(inst, orient, e_gadget_site_anchor_get(parent));
    DBG("convertible_create end");
 
@@ -226,8 +221,8 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
 }
 
 void convertible_gadget_init(DbusAccelerometer* accelerometer) {
-   e_gadget_type_add("convertible", convertible_create, NULL);
    dbus_accelerometer = accelerometer;
+   e_gadget_type_add("convertible", convertible_create, NULL);
 }
 
 void convertible_gadget_shutdown()
@@ -239,8 +234,5 @@ void convertible_gadget_shutdown()
    {
       convertible_del(remaining_instance, NULL, NULL, NULL);
    }
-   //   if (instances) return;
-   //   DBG("Freeing Instance");
-   //   free(inst);
    //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
 }

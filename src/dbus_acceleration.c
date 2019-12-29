@@ -291,24 +291,34 @@ int _fetch_X_device_input_number()
 {
    // I should get the touchscreen associated with the screen probably by looking at the classes of the input devices
    // I need to submit my patch to add getters for other XIDeviceInfo fields, like raster mentioned in his commit.
-   const char *dev_name = NULL;
+   char *dev_name = NULL;
    char **property_name = NULL;
    int dev_num = ecore_x_input_device_num_get();
+   int dev_number = -1;
 
    for (int dev_counter=0; dev_counter<dev_num; dev_counter++)
    {
       dev_name = ecore_x_input_device_name_get(dev_counter);
       //   "Virtual core pointer"
-      if (strcmp(dev_name, core_pointer_name) == 0)
+      // Horrible hack to get the touchscreen instead of the touchpad
+      if (strcmp(dev_name, core_pointer_name) == 0 || strstr(dev_name, "ouchscreen") != NULL)
       {
+         DBG("Found device with name %s", dev_name);
          int num_properties;
          property_name = ecore_x_input_device_properties_list(dev_counter, &num_properties);
-         if (strcmp(*property_name, CTM_name) == 0)
-            return dev_counter;
+         DBG("Found %d properties", num_properties);
+         char **iterator = property_name;
+         for (int i=0; i<num_properties; i++)
+         {
+            DBG("Property: %s ", *iterator);
+            if (strcmp(*iterator, CTM_name) == 0)
+               dev_number = dev_counter;
+            iterator++;
+         }
       }
    }
 
-   return -1;
+   return dev_number;
 }
 
 void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
@@ -339,22 +349,39 @@ void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
       char *result = NULL;
       TransformationMatrix *matrix = malloc(sizeof(TransformationMatrix));
       result = ecore_x_input_device_property_get(x_dev_num, CTM_name, &num_ret, &format_ret, &unit_size_ret);
-      DBG("Rotating input");
-      // format_ret of 116 -> ECORE_X_ATOM_FLOAT
-      // num_ret of 9 -> 9 (float) to read
-      // unit_size_ret of 32 -> each float is 32 bits
-      memcpy(matrix->values, result, sizeof(matrix->values));
-      for (int i = 0; i < 9; ++i)
+      if (result != NULL)
       {
-         DBG("Matrix pos %d -> %f", i, matrix->values[i]);
+
+         DBG("Device with coordinates transformation matrix");
+         DBG("Rotating input");
+         // format_ret of 116 -> ECORE_X_ATOM_FLOAT
+         // num_ret of 9 -> 9 (float) to read
+         // unit_size_ret of 32 -> each float is 32 bits
+         memcpy(matrix->values, result, sizeof(matrix->values));
+         for (int i = 0; i < 9; ++i)
+         {
+            DBG("Matrix pos %d -> %f", i, matrix->values[i]);
+         }
+         DBG("Receiving CTM");
+         const float * rotation_matrix_2d = _get_matrix_rotation_transformation(rotation);
+         for (int i = 0; i < 6; ++i)
+         {
+            DBG("Matrix pos %d -> %f", i, rotation_matrix_2d[i]);
+         }
+
+         memcpy(matrix->values, rotation_matrix_2d, 6 * sizeof(*rotation_matrix_2d));
+	      DBG("After copying CTM");
+         for (int i = 0; i < 9; ++i)
+         {
+            DBG("Matrix pos %d -> %f", i, matrix->values[i]);
+         }
+
+         ecore_x_input_device_property_set(x_dev_num, CTM_name, matrix->values, num_ret, format_ret, unit_size_ret);
+
+         DBG("Input device %d rotated to %d", x_dev_num, rotation);
+      } else {
+         ERR("Unable to fetch coordinates transformation matrix for device %d", x_dev_num);
       }
-
-      const float * rotation_matrix_2d = _get_matrix_rotation_transformation(rotation);
-      memcpy(matrix->values, rotation_matrix_2d, sizeof(*rotation_matrix_2d));
-
-      ecore_x_input_device_property_set(x_dev_num, CTM_name, matrix->values, num_ret, format_ret, unit_size_ret);
-
-      DBG("Input device %d rotated to %d", x_dev_num, rotation);
    }
 }
 
