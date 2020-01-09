@@ -62,13 +62,13 @@ _create_data(E_Config_Dialog *cfg EINA_UNUSED)
  * Release memory for the data structure holding the configuration
  *
  * @param c
- * @param cf
+ * @param dialog_data
  */
 static void
-_free_data(E_Config_Dialog *c EINA_UNUSED, E_Config_Dialog_Data *cf)
+_free_data(E_Config_Dialog *c EINA_UNUSED, E_Config_Dialog_Data *dialog_data)
 {
-   free(cf->config);
-   free(cf);
+   free(dialog_data->config);
+   free(dialog_data);
 }
 
 /**

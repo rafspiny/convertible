@@ -12,21 +12,14 @@ DbusAccelerometer* sensor_proxy_init() {
    // Initialise DBUS component
    if (accelerometer_dbus != NULL)
    {
-      WARN("We already have a struct filled");
+      INF("We already have a struct filled");
       return accelerometer_dbus;
    }
-   accelerometer_dbus  = malloc(sizeof(DbusAccelerometer));
-   // TODO Double check if we need these initializations
-   accelerometer_dbus->has_accelerometer = EINA_FALSE;
-   accelerometer_dbus->monitoring = EINA_FALSE;
-   accelerometer_dbus->acquired = EINA_FALSE;
+   accelerometer_dbus  = calloc(1, sizeof(DbusAccelerometer));
 
    // The next line is probably redundant
    accelerometer_dbus->orientation = malloc(sizeof(char) * 20);
    snprintf(accelerometer_dbus->orientation, sizeof("undefined"), "undefined");
-
-   accelerometer_dbus->sensor_proxy = NULL;
-   accelerometer_dbus->sensor_proxy_properties = NULL;
 
    DBG("Before eldbus initialization");
    int initialization = eldbus_init();
@@ -347,7 +340,7 @@ void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
       int num_ret, unit_size_ret;
       Ecore_X_Atom format_ret;
       char *result = NULL;
-      TransformationMatrix *matrix = malloc(sizeof(TransformationMatrix));
+      TransformationMatrix *matrix = calloc(1, sizeof(TransformationMatrix));
       result = ecore_x_input_device_property_get(x_dev_num, CTM_name, &num_ret, &format_ret, &unit_size_ret);
       if (result != NULL)
       {
@@ -382,6 +375,7 @@ void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
       } else {
          ERR("Unable to fetch coordinates transformation matrix for device %d", x_dev_num);
       }
+      free(matrix);
    }
 }
 
