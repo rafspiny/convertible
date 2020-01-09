@@ -37,7 +37,7 @@ e_modapi_init(E_Module *m)
    convertible_module = m;
    // It looks like this is not needed right now
    //    e_gadcon_provider_register(&_gadcon_class);
-   char theme_overlay_path[4096];
+   char theme_overlay_path[PATH_MAX];
    snprintf(theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
    elm_theme_extension_add(NULL, theme_overlay_path);
 
