@@ -18,8 +18,7 @@ DbusAccelerometer* sensor_proxy_init() {
    accelerometer_dbus  = calloc(1, sizeof(DbusAccelerometer));
 
    // The next line is probably redundant
-   accelerometer_dbus->orientation = malloc(sizeof(char) * 20);
-   snprintf(accelerometer_dbus->orientation, sizeof("undefined"), "undefined");
+   accelerometer_dbus->orientation = undefined;
 
    DBG("Before eldbus initialization");
    int initialization = eldbus_init();
@@ -34,6 +33,7 @@ DbusAccelerometer* sensor_proxy_init() {
    if (accelerometer_dbus->sensor_proxy == NULL)
    {
       ERR("Unable to get the proxy for interface %s", EFL_DBUS_ACC_IFACE);
+      return accelerometer_dbus;
    }
 
    accelerometer_dbus->pending_has_orientation = eldbus_proxy_property_get(accelerometer_dbus->sensor_proxy,
@@ -50,7 +50,7 @@ DbusAccelerometer* sensor_proxy_init() {
 
    if (!accelerometer_dbus->pending_acc_claim)
    {
-      ERR("Error: could not call ClaimAccelerometer\n");
+      ERR("Error: could not call ClaimAccelerometer");
    }
 
    return accelerometer_dbus;
@@ -72,7 +72,7 @@ void sensor_proxy_shutdown()
    eldbus_shutdown();
 }
 
-int _convertible_rotation_get(const char *orientation);
+int _convertible_rotation_get(const enum screen_rotation orientation);
 
 Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 {
@@ -85,65 +85,73 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE)
    if (!conn)
    {
       ERR("Error: could not get system bus");
+      return NULL;
    }
    obj = eldbus_object_get(conn, EFL_DBUS_ACC_BUS, EFL_DBUS_ACC_PATH);
    if (!obj)
    {
       ERR("Error: could not get object");
-   }
-   else
-   {
-      DBG("Object fetched.");
+      return NULL;
    }
    sensor_proxy = eldbus_proxy_get(obj, IFACE);
    if (!sensor_proxy)
    {
       ERR("Error: could not get proxy for interface %s", IFACE);
-   }
-   else
-   {
-      DBG("Proxy fetched");
+      return NULL;
    }
 
    return sensor_proxy;
 }
 
-Eina_Bool access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, char **string_property_value)
+enum screen_rotation access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, Eina_Bool* result)
 {
    const char *type = NULL;
-   Eina_Bool res = EINA_TRUE;
+   *result = EINA_TRUE;
 
    if (!eldbus_message_arguments_get(msg, "v", variant))
    {
       WARN("Error getting arguments.");
-      res = EINA_FALSE;
+      *result = EINA_FALSE;
    }
    type = eldbus_message_iter_signature_get((*variant));
    if (type == NULL)
    {
       WARN("Unable to get the type.");
-      res = EINA_FALSE;
-      return res;
+      *result = EINA_FALSE;
+      return undefined;
    }
    
    type = eldbus_message_iter_signature_get((*variant));
    if (type[1])
    {
       WARN("It is a complex type, not handle yet.");
-      res = EINA_FALSE;
+      *result = EINA_FALSE;
    }
    if (type[0] != 's')
    {
       WARN("Expected type is string(s).");
-      res = EINA_FALSE;
+      *result = EINA_FALSE;
    }
+   const char **string_property_value = calloc(PATH_MAX, sizeof(char));
    if (!eldbus_message_iter_arguments_get((*variant), "s", string_property_value))
    {
       WARN("error in eldbus_message_iter_arguments_get()");
-      res = EINA_FALSE;
+      *result = EINA_FALSE;
    }
+
+   enum screen_rotation rotation = undefined;
+   if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, *string_property_value) == 0)
+      rotation = right_up;
+   if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, *string_property_value) == 0)
+      rotation = left_up;
+   if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, *string_property_value) == 0)
+      rotation = flipped;
+   if (strcmp(ACCELEROMETER_ORIENTATION_NORMAL, *string_property_value) == 0)
+      rotation = normal;
+
    free((void *) type);
-   return res;
+   free(string_property_value);
+   return rotation;
 }
 
 Eina_Bool
@@ -216,8 +224,9 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
 
 
    const char *errname, *errmsg;
-   char *orientation = malloc(sizeof(char[20]));
+   enum screen_rotation orientation;
    Eldbus_Message_Iter *variant = NULL;
+   Eina_Bool* result = calloc(1, sizeof(Eina_Bool));
 
    if (eldbus_message_error_get(msg, &errname, &errmsg))
    {
@@ -225,40 +234,43 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
       return;
    }
 
-   access_string_property(msg, &variant, &orientation);
+   orientation = access_string_property(msg, &variant, result);
+   if (result == EINA_FALSE)
+   {
+      INF("Failed to retrieve the orientation from dbus message");
+      free(result);
+      return;
+   }
+   free(result);
+
    inst->accelerometer->orientation = orientation;
-   DBG("Current Orientation: %s", inst->accelerometer->orientation);
-   int rotation = _convertible_rotation_get(orientation);
+   DBG("Current Orientation: %d", inst->accelerometer->orientation);
 
    if (inst->randr2_ids == NULL)
       ERR("Screen not set.");
    else
    {
-      WARN("Setting screen(s) rotation to %d", rotation);
-
-
       Eina_List *l;
       const char *randr_id = NULL;
       EINA_LIST_FOREACH(inst->randr2_ids, l, randr_id)
       {
-         _fetch_and_rotate_screen(randr_id, rotation);
+         _fetch_and_rotate_screen(randr_id, orientation);
       }
       free((void *)randr_id);
    }
 }
 
-int _convertible_rotation_get(const char *orientation)
+int _convertible_rotation_get(const enum screen_rotation orientation)
 {
-   int rotation = 0;
-   // TODO Should really check for inst->main_screen->info.can_rot_x
-   if (strcmp(ACCELEROMETER_ORIENTATION_RIGHT, orientation) == 0)
-      rotation = 270;
-   if (strcmp(ACCELEROMETER_ORIENTATION_LEFT, orientation) == 0)
-      rotation = 90;
-   if (strcmp(ACCELEROMETER_ORIENTATION_BOTTOM, orientation) == 0)
-      rotation = 180;
-   DBG("Rotation: %d", rotation);
-   return rotation;
+   switch (orientation)
+   {
+      case normal: return 0;
+      case left_up: return 90;
+      case flipped: return 180;
+      case right_up: return 270;
+
+      default: return 0;
+   }
 }
 
 const float * _get_matrix_rotation_transformation(int rotation)
@@ -284,7 +296,7 @@ int _fetch_X_device_input_number()
 {
    // I should get the touchscreen associated with the screen probably by looking at the classes of the input devices
    // I need to submit my patch to add getters for other XIDeviceInfo fields, like raster mentioned in his commit.
-   char *dev_name = NULL;
+   const char *dev_name = NULL;
    char **property_name = NULL;
    int dev_num = ecore_x_input_device_num_get();
    int dev_number = -1;
@@ -314,10 +326,11 @@ int _fetch_X_device_input_number()
    return dev_number;
 }
 
-void _fetch_and_rotate_screen(const char* randr_id, int rotation) {
+void _fetch_and_rotate_screen(const char* randr_id, enum screen_rotation orientation) {
    DBG("Working on screen %s", randr_id);
    E_Randr2_Screen *rotatable_screen = e_randr2_screen_id_find(randr_id);
    E_Config_Randr2_Screen *screen_randr_cfg = e_randr2_config_screen_find(rotatable_screen, e_randr2_cfg);
+   int rotation = _convertible_rotation_get(orientation);
    DBG("Screen %s is going to be rotated to %d", randr_id, rotation);
 
    if (rotation == screen_randr_cfg->rotation)

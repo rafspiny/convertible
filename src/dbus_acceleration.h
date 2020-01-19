@@ -9,14 +9,16 @@
 #define EFL_DBUS_ACC_PATH "/net/hadess/SensorProxy"
 #define EFL_DBUS_ACC_IFACE "net.hadess.SensorProxy"
 
+// This enum represents the 4 states of screen rotation plus undefined
+enum screen_rotation {undefined, normal, right_up, flipped, left_up};
+
 typedef struct _DbusAccelerometer DbusAccelerometer;
 
 struct _DbusAccelerometer
 {
    Eina_Bool has_accelerometer;
-   char *orientation;
-   Eina_Bool monitoring;
    Eina_Bool acquired;
+   enum screen_rotation orientation;
    Eldbus_Proxy *sensor_proxy, *sensor_proxy_properties;
    Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
 };
@@ -40,11 +42,11 @@ Eldbus_Proxy *get_dbus_interface(const char *IFACE);
  * Helper function to extract ta string property from the message
  * @param msg The message coming from the get property invocation
  * @param variant
- * @param string_property_value The string property pointer where the value should be stored, if read
- * @return
+ * @param result 1 if result is ok, 0 if it failed
+ * @return Enum specifying the orientation
  */
-Eina_Bool
-access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, char **string_property_value);
+enum screen_rotation
+access_string_property(const Eldbus_Message *msg, Eldbus_Message_Iter **variant, Eina_Bool* result);
 
 /**
  * Helper function to extract ta boolean property from the message
@@ -100,5 +102,5 @@ on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eld
  * @param randr_id The randr2 id
  * @param rotation The expected rotation
  */
-void _fetch_and_rotate_screen(const char* randr_id, int rotation);
+void _fetch_and_rotate_screen(const char* randr_id, enum screen_rotation orientation);
 #endif

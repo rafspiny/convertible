@@ -14,13 +14,9 @@ void _rotation_signal_cb(void *data EINA_UNUSED, Evas_Object *obj EINA_UNUSED, c
    DBG("Rotation: Signal %s received from %s", sig, src);
    Instance *inst = data;
    if (eina_str_has_prefix(sig, "unlock"))
-   {
       inst->locked_position = EINA_FALSE;
-   }
    if (eina_str_has_prefix(sig, "lock"))
-   {
       inst->locked_position = EINA_TRUE;
-   }
 }
 
 void _keyboard_signal_cb(void *data EINA_UNUSED, Evas_Object *obj EINA_UNUSED, const char *sig EINA_UNUSED,
@@ -69,7 +65,9 @@ convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, v
    eldbus_signal_handler_del(inst->dbus_property_changed_sh);
 
    // Remove screen info
-   eina_list_free(inst->randr2_ids);
+   char *element;
+   EINA_LIST_FREE(inst->randr2_ids, element)
+      free(element);
 
    free(inst);
 }
@@ -85,17 +83,13 @@ _cb_properties_changed(void *data, const Eldbus_Message *msg)
    char *iface;
 
    if (!eldbus_message_arguments_get(msg, "sa{sv}as", &iface, &array, &invalidate))
-   {
       ERR("Error getting data from properties changed signal.");
-   }
    // Given that the property changed, let's get the new value
    Eldbus_Pending *pending_operation = eldbus_proxy_property_get(inst->accelerometer->sensor_proxy,
                              "AccelerometerOrientation",
                              on_accelerometer_orientation, inst);
    if (!pending_operation)
-   {
       ERR("Error: could not get property AccelerometerOrientation");
-   }
 }
 
 /**
@@ -128,9 +122,7 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
                                                                              "PropertiesChanged",
                                                                              _cb_properties_changed, inst);
    if (!inst->dbus_property_changed_sh)
-   {
       ERR("Error: could not add the signal handler for PropertiesChanged");
-   }
 
    // TODO Should initialize those as well
    // Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
@@ -160,24 +152,15 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
    DBG("Looking for the main screen");
    Eina_List *l;
    inst->randr2_ids = NULL;
-   eina_list_free(inst->randr2_ids);
    EINA_LIST_FOREACH(e_comp->zones, l, zone)
    {
-      DBG("ID: %d", zone->id);
-      DBG("NAME: %s", zone->name);
-      DBG("RANDR2_ID: %s", zone->randr2_id);
-      DBG("W: %d", zone->w);
-      DBG("H: %d", zone->h);
-
       // Get the screen for the zone
       E_Randr2_Screen *screen = e_randr2_screen_id_find(zone->randr2_id);
-      DBG("rot_90 %i", screen->info.can_rot_90);
       DBG("name randr2 id %s", zone->randr2_id);
+      DBG("rot_90 %i", screen->info.can_rot_90);
       // Arbitrarily chosen a condition to check that rotation is enabled
       if (screen->info.can_rot_90 == EINA_TRUE)
-         {
-         DBG("Rotatable");
-         DBG(zone->randr2_id);
+      {
          int max_screen_length = 300;
          char *randr2_id =  malloc(sizeof(char) * max_screen_length);
          int copied_chars = eina_strlcpy(randr2_id, zone->randr2_id, max_screen_length);
@@ -186,20 +169,14 @@ convertible_create(Evas_Object *parent, int *id, E_Gadget_Site_Orient orient EIN
          if (copied_chars < 0)
             ERR("Can't copy the screen name");
 
-         INF("Screen name: %s", randr2_id);
-
          inst->randr2_ids = eina_list_append(inst->randr2_ids, randr2_id);
          if (eina_error_get())
-            {
             ERR("Memory is low. List allocation failed.");
-            }
-         }
+      }
    }
 
    if (inst->randr2_ids == NULL)
-   {
       ERR("Unable to find rotatable screens");
-   }
 
    DBG("%d screen(s) has been found", eina_list_count(inst->randr2_ids));
 
@@ -231,8 +208,6 @@ void convertible_gadget_shutdown()
    Instance *remaining_instance = NULL;
    Eina_List *l;
    EINA_LIST_FOREACH(instances, l, remaining_instance)
-   {
       convertible_del(remaining_instance, NULL, NULL, NULL);
-   }
    //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
 }
