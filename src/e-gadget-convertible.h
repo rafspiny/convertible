@@ -17,7 +17,6 @@ _keyboard_signal_cb(void *data EINA_UNUSED, Evas_Object *obj, const char *sig EI
 
 /* Initialization and shutdown of the gadget*/
 void convertible_gadget_init(Instance* inst);
-void convertible_gadget_shutdown();
 
 /* end gadcon callback for actions */
 

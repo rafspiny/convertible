@@ -159,9 +159,6 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
    // Shutdown Dbus
    sensor_proxy_shutdown();
 
-   // Shutting down the gadget
-   convertible_gadget_shutdown();
-
    // Remove dbus stuff
    INF("Removing signal handler dbus_property_changed_sh");
    eldbus_signal_handler_del(inst->dbus_property_changed_sh);

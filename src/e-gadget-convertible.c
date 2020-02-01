@@ -96,12 +96,3 @@ void convertible_gadget_init(Instance* inst) {
    e_gadget_type_add("convertible", convertible_create, NULL);
 }
 
-void convertible_gadget_shutdown()
-{
-//   // Remove all the remaining instances
-//   Instance *remaining_instance = NULL;
-//   Eina_List *l;
-//   EINA_LIST_FOREACH(instances, l, remaining_instance)
-//      convertible_del(remaining_instance, NULL, NULL, NULL);
-//   //    evas_object_smart_callback_del_full(inst->site, "gadget_site_anchor", _anchor_change, inst);
-}
