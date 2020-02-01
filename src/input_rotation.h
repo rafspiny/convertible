@@ -11,11 +11,10 @@ typedef struct _TransformationMatrix {
 
 
 static const float MATRIX_ROTATION_IDENTITY[6] = {1, 0, 0, 0, 1, 0 };
-static const float MATRIX_ROTATION_90[6] = {0, 1, 0, -1, 0, 1 };
+static const float MATRIX_ROTATION_270[6] = {0, 1, 0, -1, 0, 1 };
 static const float MATRIX_ROTATION_180[6] = {-1, 0, 1, 0, -1, 1 };
-static const float MATRIX_ROTATION_270[6] = {0, -1, 1, 1, 0, 0 };
+static const float MATRIX_ROTATION_90[6] = {0, -1, 1, 1, 0, 0 };
 
-static const char *core_pointer_name = "Virtual core pointer";
 // "Coordinate Transformation Matrix"
 static const char *CTM_name = "Coordinate Transformation Matrix";
 #endif //E_GADGET_CONVERTIBLE_INPUT_ROTATION_H

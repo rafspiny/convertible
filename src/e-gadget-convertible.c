@@ -29,7 +29,7 @@ void _keyboard_signal_cb(void *data EINA_UNUSED, Evas_Object *obj EINA_UNUSED, c
  * Callback for gadget creation
  * */
 static void
-_gadget_created(void *data, Evas_Object *obj, void *event_info)
+_gadget_created(void *data EINA_UNUSED, Evas_Object *obj, void *event_info EINA_UNUSED)
 {
    DBG("Inside gadget created");
    //    do_orient(inst, e_gadget_site_orient_get(obj), e_gadget_site_anchor_get(obj));
@@ -41,7 +41,7 @@ _gadget_created(void *data, Evas_Object *obj, void *event_info)
  * Free resources when the gadget is removed
  * */
 static void
-convertible_del(void *data, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
+convertible_del(void *data EINA_UNUSED, Evas *e EINA_UNUSED, Evas_Object *obj EINA_UNUSED, void *event_info EINA_UNUSED)
 {
    DBG("CONVERTIBLE convertible_delete");
 

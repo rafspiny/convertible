@@ -74,6 +74,8 @@ void sensor_proxy_shutdown()
 
 int _convertible_rotation_get(const enum screen_rotation orientation);
 
+int _is_device_a_touch_pointer(int dev_counter, int num_properties, char **iterator);
+
 Eldbus_Proxy *get_dbus_interface(const char *IFACE)
 {
    DBG("Working on interface: %s", IFACE);
@@ -120,7 +122,7 @@ enum screen_rotation access_string_property(const Eldbus_Message *msg, Eldbus_Me
       *result = EINA_FALSE;
       return undefined;
    }
-   
+
    type = eldbus_message_iter_signature_get((*variant));
    if (type[1])
    {
@@ -304,26 +306,53 @@ int _fetch_X_device_input_number()
    for (int dev_counter=0; dev_counter<dev_num; dev_counter++)
    {
       dev_name = ecore_x_input_device_name_get(dev_counter);
-      //   "Virtual core pointer"
-      // Horrible hack to get the touchscreen instead of the touchpad
-      if (strcmp(dev_name, core_pointer_name) == 0 || strstr(dev_name, "ouchscreen") != NULL)
-      {
-         DBG("Found device with name %s", dev_name);
-         int num_properties;
-         property_name = ecore_x_input_device_properties_list(dev_counter, &num_properties);
-         DBG("Found %d properties", num_properties);
-         char **iterator = property_name;
-         for (int i=0; i<num_properties; i++)
-         {
-            DBG("Property: %s ", *iterator);
-            if (strcmp(*iterator, CTM_name) == 0)
-               dev_number = dev_counter;
-            iterator++;
-         }
-      }
+      // Less horrible hack that relies on the presence of a property containing the work Calibration
+       DBG("Found device with name %s", dev_name);
+       int num_properties;
+       property_name = ecore_x_input_device_properties_list(dev_counter, &num_properties);
+       DBG("Found %d properties", num_properties);
+       char **iterator = property_name;
+       int is_correct_device = _is_device_a_touch_pointer(dev_counter, num_properties, iterator);
+       if (is_correct_device == EINA_FALSE)
+          continue;
+       iterator = property_name;
+       for (int i=0; i<num_properties; i++)
+       {
+          if (strcmp(*iterator, CTM_name) == 0)
+          {
+	     dev_number = dev_counter;
+             DBG("Setting device: %d", dev_number);
+          }
+          iterator++;
+       }
    }
 
    return dev_number;
+}
+
+int _is_device_a_touch_pointer(int dev_counter, int num_properties, char **iterator)
+{
+   // Looking for a device with either a libinput property for calibration or the old evdev Axlis labels property.
+   int is_correct_device = EINA_FALSE;
+   for (int i=0; i<num_properties; i++)
+   {
+      if (strstr(*iterator, "libinput Calibration Matrix") != NULL)
+         is_correct_device = EINA_TRUE;
+      if (strstr(*iterator, "Axis Labels") != NULL)
+      {
+         int num_ret, unit_size_ret;
+         Ecore_X_Atom format_ret;
+         char *result = NULL;
+         result = ecore_x_input_device_property_get(dev_counter, *iterator, &num_ret, &format_ret, &unit_size_ret);
+         if (result != NULL) {
+            // TODO Shall check for the value "Abs MT Position"
+         }
+         DBG("Looks like I found a device with calibration capabilities");
+         is_correct_device = EINA_TRUE;
+      }
+      iterator++;
+   }
+   return is_correct_device;
 }
 
 void _fetch_and_rotate_screen(const char* randr_id, enum screen_rotation orientation) {
@@ -359,29 +388,12 @@ void _fetch_and_rotate_screen(const char* randr_id, enum screen_rotation orienta
       {
 
          DBG("Device with coordinates transformation matrix");
-         DBG("Rotating input");
          // format_ret of 116 -> ECORE_X_ATOM_FLOAT
          // num_ret of 9 -> 9 (float) to read
          // unit_size_ret of 32 -> each float is 32 bits
          memcpy(matrix->values, result, sizeof(matrix->values));
-         for (int i = 0; i < 9; ++i)
-         {
-            DBG("Matrix pos %d -> %f", i, matrix->values[i]);
-         }
-         DBG("Receiving CTM");
          const float * rotation_matrix_2d = _get_matrix_rotation_transformation(rotation);
-         for (int i = 0; i < 6; ++i)
-         {
-            DBG("Matrix pos %d -> %f", i, rotation_matrix_2d[i]);
-         }
-
          memcpy(matrix->values, rotation_matrix_2d, 6 * sizeof(*rotation_matrix_2d));
-	      DBG("After copying CTM");
-         for (int i = 0; i < 9; ++i)
-         {
-            DBG("Matrix pos %d -> %f", i, matrix->values[i]);
-         }
-
          ecore_x_input_device_property_set(x_dev_num, CTM_name, matrix->values, num_ret, format_ret, unit_size_ret);
 
          DBG("Input device %d rotated to %d", x_dev_num, rotation);
