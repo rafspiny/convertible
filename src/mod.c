@@ -3,6 +3,7 @@
 //
 #include <e.h>
 #include <e_module.h>
+#include <e_gadcon.h>
 #include "convertible_logging.h"
 #include "accelerometer-orientation.h"
 #include "e-gadget-convertible.h"
@@ -24,10 +25,213 @@ int _convertible_log_dom;
 
 /* module setup */
 E_API E_Module_Api e_modapi =
-     {
-                E_MODULE_API_VERSION,
-                "convertible"
-     };
+ {
+        E_MODULE_API_VERSION,
+        "convertible"
+ };
+
+
+/* LIST OF INSTANCES */
+static Eina_List *instances = NULL;
+
+
+/* gadcon requirements */
+static E_Gadcon_Client *_gc_init(E_Gadcon *gc, const char *name, const char *id, const char *style);
+static void             _gc_shutdown(E_Gadcon_Client *gcc);
+static void             _gc_orient(E_Gadcon_Client *gcc, E_Gadcon_Orient orient);
+static const char      *_gc_label(const E_Gadcon_Client_Class *client_class);
+static Evas_Object     *_gc_icon(const E_Gadcon_Client_Class *client_class, Evas *evas);
+static const char      *_gc_id_new(const E_Gadcon_Client_Class *client_class);
+/* and actually define the gadcon class that this module provides (just 1) */
+static const E_Gadcon_Client_Class _gadcon_class =
+{
+        GADCON_CLIENT_CLASS_VERSION,
+        "convertible",
+        {
+                _gc_init, _gc_shutdown, _gc_orient, _gc_label, _gc_icon, _gc_id_new, NULL,
+                e_gadcon_site_is_not_toolbar
+        },
+        E_GADCON_CLIENT_STYLE_PLAIN
+};
+
+
+static E_Gadcon_Client *
+_gc_init(E_Gadcon *gc, const char *name, const char *id, const char *style)
+{
+   Evas_Object *evas_object;
+   E_Gadcon_Client *gcc;
+   Instance *instance;
+
+   evas_object = edje_object_add(gc->evas);
+   e_theme_edje_object_set(evas_object, "base/theme/modules/convertible",
+                           "e/modules/convertible/main");
+
+   instance = E_NEW(Instance, 1);
+   instance->accelerometer = inst->accelerometer;
+   instance->disabled_keyboard = inst->disabled_keyboard;
+   instance->locked_position = inst->locked_position;
+   instance->randr2_ids = inst->randr2_ids;
+   instance->o_button = evas_object;
+
+   instances = eina_list_append(instances, instance);
+   update_instances(instances);
+
+   gcc = e_gadcon_client_new(gc, name, id, style, evas_object);
+   gcc->data = instance;
+
+    evas_object_size_hint_aspect_set(evas_object, EVAS_ASPECT_CONTROL_BOTH, 1, 1);
+    //    evas_object_smart_callback_add(parent, "gadget_site_anchor", _anchor_change, inst);
+
+    // Adding callback for EDJE object
+    INF("Adding callback for creation and other events from EDJE");
+    edje_object_signal_callback_add(evas_object, "lock,rotation", "tablet", _rotation_signal_cb, instance);
+    edje_object_signal_callback_add(evas_object, "unlock,rotation", "tablet", _rotation_signal_cb, instance);
+    edje_object_signal_callback_add(evas_object, "enable,keyboard", "keyboard", _keyboard_signal_cb, instance);
+    edje_object_signal_callback_add(evas_object, "disable,keyboard", "keyboard", _keyboard_signal_cb, instance);
+    
+    inst->o_button = evas_object;
+
+    return gcc;
+}
+
+static void
+_gc_shutdown(E_Gadcon_Client *gcc)
+{
+   DBG("CONVERTIBLE gadcon shutdown");
+   Instance *instance;
+
+   if (!(instance = gcc->data)) return;
+   instances = eina_list_remove(instances, instance);
+   instance->accelerometer = NULL;
+
+   // Remove callbacks
+   DBG("Removing EDJE callbacks");
+   edje_object_signal_callback_del(instance->o_button, "lock,rotation", "tablet", _rotation_signal_cb);
+   edje_object_signal_callback_del(instance->o_button, "unlock,rotation", "tablet", _rotation_signal_cb);
+   edje_object_signal_callback_del(instance->o_button, "enable,keyboard", "keyboard", _keyboard_signal_cb);
+   edje_object_signal_callback_del(instance->o_button, "disable,keyboard", "keyboard", _keyboard_signal_cb);
+
+   evas_object_del(instance->o_button);
+
+   E_FREE(instance);
+}
+
+static void
+_gc_orient(E_Gadcon_Client *gcc, E_Gadcon_Orient orient)
+{
+   Instance *inst;
+   Evas_Coord mw, mh;
+   char buf[4096];
+   const char *s = "float";
+
+   inst = gcc->data;
+   switch (orient)
+   {
+      case E_GADCON_ORIENT_FLOAT:
+         s = "float";
+           break;
+
+      case E_GADCON_ORIENT_HORIZ:
+         s = "horizontal";
+           break;
+
+      case E_GADCON_ORIENT_VERT:
+         s = "vertical";
+           break;
+
+      case E_GADCON_ORIENT_LEFT:
+         s = "left";
+           break;
+
+      case E_GADCON_ORIENT_RIGHT:
+         s = "right";
+           break;
+
+      case E_GADCON_ORIENT_TOP:
+         s = "top";
+           break;
+
+      case E_GADCON_ORIENT_BOTTOM:
+         s = "bottom";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_TL:
+         s = "top_left";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_TR:
+         s = "top_right";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_BL:
+         s = "bottom_left";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_BR:
+         s = "bottom_right";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_LT:
+         s = "left_top";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_RT:
+         s = "right_top";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_LB:
+         s = "left_bottom";
+           break;
+
+      case E_GADCON_ORIENT_CORNER_RB:
+         s = "right_bottom";
+           break;
+
+      default:
+         break;
+   }
+   snprintf(buf, sizeof(buf), "e,state,orientation,%s", s);
+   edje_object_signal_emit(inst->o_button, buf, "e");
+   edje_object_message_signal_process(inst->o_button);
+
+   mw = 0, mh = 0;
+   edje_object_size_min_get(inst->o_button, &mw, &mh);
+   if ((mw < 1) || (mh < 1))
+      edje_object_size_min_calc(inst->o_button, &mw, &mh);
+   if (mw < 4) mw = 4;
+   if (mh < 4) mh = 4;
+   e_gadcon_client_aspect_set(gcc, mw, mh);
+   e_gadcon_client_min_size_set(gcc, mw, mh);
+}
+
+static const char *
+_gc_label(const E_Gadcon_Client_Class *client_class EINA_UNUSED)
+{
+   return "Convertible";
+}
+
+static Evas_Object *
+_gc_icon(const E_Gadcon_Client_Class *client_class EINA_UNUSED, Evas *evas)
+{
+   Evas_Object *o;
+   char buf[PATH_MAX];
+
+   o = edje_object_add(evas);
+   snprintf(buf, sizeof(buf), "%s/e-module-convertible.edj", convertible_module->dir);
+   edje_object_file_set(o, buf, "main");
+   return o;
+}
+
+static const char *
+_gc_id_new(const E_Gadcon_Client_Class *client_class EINA_UNUSED)
+{
+   static char buf[4096];
+
+   snprintf(buf, sizeof(buf), "%s.%d", client_class->name,
+             eina_list_count(instances) + 1);
+   return buf;
+}
+
 
 /**
  * Prepare to fetch the new value for the DBUS property that has changed
@@ -56,8 +260,6 @@ e_modapi_init(E_Module *m)
    _convertible_log_dom = eina_log_domain_register("convertible", EINA_COLOR_LIGHTBLUE);
 
    convertible_module = m;
-   // It looks like this is not needed right now
-   //    e_gadcon_provider_register(&_gadcon_class);
    char theme_overlay_path[PATH_MAX];
    snprintf(theme_overlay_path, sizeof(theme_overlay_path), "%s/e-module-convertible.edj", convertible_module->dir);
    elm_theme_extension_add(NULL, theme_overlay_path);
@@ -65,39 +267,27 @@ e_modapi_init(E_Module *m)
    econvertible_config_init(NULL);
 
    // Config DBus
-   DbusAccelerometer* accelerometer = sensor_proxy_init();
-
-   DBG("creating instance");
+   DbusAccelerometer *accelerometer = sensor_proxy_init();
    inst = E_NEW(Instance, 1);
    inst->accelerometer = accelerometer;
-
-   //   inst->accelerometer->pending_orientation = eldbus_proxy_property_get(inst->accelerometer->sensor_proxy,
-   //                                                                  "AccelerometerOrientation",
-   //                                                                  on_accelerometer_orientation, inst);
-   //   if (!inst->accelerometer->pending_orientation)
-   //   {
-   //      ERR("Error: could not get property AccelerometerOrientation");
-   //   }
-
-   inst->dbus_property_changed_sh = eldbus_proxy_signal_handler_add(inst->accelerometer->sensor_proxy_properties,
-                                                                    "PropertiesChanged",
-                                                                    _cb_properties_changed, inst);
-   if (!inst->dbus_property_changed_sh)
-      ERR("Error: could not add the signal handler for PropertiesChanged");
-
-   // TODO Should initialize those as well
-   // Eldbus_Pending *pending_has_orientation, *pending_orientation, *pending_acc_claim, *pending_acc_crelease;
    inst->locked_position = EINA_FALSE;
    inst->disabled_keyboard = EINA_FALSE;
 
-   // TODO Remove these. They are a refuse from the copy and paste of the start (or wireless) module
-   //    inst->site = parent;
-   //    o = elm_layout_add(parent);
+   // Making sure we rotate the screen to the current orientation coming from the sensor
+   inst->accelerometer->pending_orientation = eldbus_proxy_property_get(inst->accelerometer->sensor_proxy,
+                                                                 "AccelerometerOrientation",
+                                                                 on_accelerometer_orientation, inst);
+   if (!inst->accelerometer->pending_orientation)
+   {
+      ERR("Error: could not get property AccelerometerOrientation");
+   }
 
-   DBG("setting edje theme layer");
-   // Registering the theme in order to get our small custom icon
-   // TODO Consider replacing the folowing block with the commented line below
-   // e_theme_edje_object_set(g, NULL, "e/gadget/wireless/wifi");
+   // Set the callback for property changed event
+   accelerometer->dbus_property_changed_sh = eldbus_proxy_signal_handler_add(accelerometer->sensor_proxy_properties,
+                                                                    "PropertiesChanged",
+                                                                    _cb_properties_changed, inst);
+   if (!accelerometer->dbus_property_changed_sh)
+      ERR("Error: could not add the signal handler for PropertiesChanged");
 
    // Screen related part
    E_Zone *zone = NULL;
@@ -134,8 +324,7 @@ e_modapi_init(E_Module *m)
 
    DBG("%d screen(s) has been found", eina_list_count(inst->randr2_ids));
 
-   INF("Setting the callback for gadget creation");
-   convertible_gadget_init(inst);
+   e_gadcon_provider_register(&_gadcon_class);
 
    INF("Creating menu entries for settings");
    e_configure_registry_category_add("extensions", 90, "Extensions", NULL,
@@ -143,8 +332,8 @@ e_modapi_init(E_Module *m)
    e_configure_registry_item_add("extensions/convertible", 30, "convertible", NULL,
                                  "preferences-desktop-convertible", e_int_config_convertible_module);
 
-//   evas_object_event_callback_add(inst->gadget, EVAS_CALLBACK_MOUSE_DOWN,
-//                                  _mouse_down_cb, inst);
+   instances = eina_list_append(instances, inst);
+
    return m;
 }
 
@@ -159,10 +348,6 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
    // Shutdown Dbus
    sensor_proxy_shutdown();
 
-   // Remove dbus stuff
-   INF("Removing signal handler dbus_property_changed_sh");
-   eldbus_signal_handler_del(inst->dbus_property_changed_sh);
-
    // Remove screen info
    char *element;
    EINA_LIST_FREE(inst->randr2_ids, element)
@@ -172,8 +357,7 @@ e_modapi_shutdown(E_Module *m EINA_UNUSED)
 
    INF("Shutting down the module");
    convertible_module = NULL;
-   //    e_gadcon_provider_unregister(&_gadcon_class);
-   e_gadget_type_del("convertible");
+   e_gadcon_provider_unregister(&_gadcon_class);
 
    // Removing logger
    DBG("Removing the logger");

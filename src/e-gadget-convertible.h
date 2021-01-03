@@ -15,9 +15,7 @@ _rotation_signal_cb(void *data EINA_UNUSED, Evas_Object *obj, const char *sig EI
 void
 _keyboard_signal_cb(void *data EINA_UNUSED, Evas_Object *obj, const char *sig EINA_UNUSED, const char *src EINA_UNUSED);
 
-/* Initialization and shutdown of the gadget*/
-void convertible_gadget_init(Instance* inst);
-
+void update_instances(Eina_List *instances);
 /* end gadcon callback for actions */
 
 

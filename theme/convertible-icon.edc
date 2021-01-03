@@ -1,0 +1,32 @@
+images {
+   image: "tablet.svg" COMP;
+}
+
+collections {
+   group {
+      name: "icon";
+      alias: "e/modules/convertible/main";
+      max: 128 128;
+      min: 16 16;
+      parts {
+         part {
+            name: "background";
+            type: RECT;
+            description {
+               state: "default";
+               color: 255 255 255 0;
+            }
+         }
+         part {
+            name: "image";
+            mouse_events: 0;
+            type: IMAGE;
+            description {
+               state: "default" 0.0;
+               image.normal: "tablet.svg";
+            }
+         }
+      }
+   }
+}
+
