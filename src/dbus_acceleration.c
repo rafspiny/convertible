@@ -58,8 +58,11 @@ DbusAccelerometer* sensor_proxy_init() {
 
 void sensor_proxy_shutdown()
 {
-   INF("Freeing convertible resources");
+   INF("Removing signal handler dbus_property_changed_sh");
+   eldbus_signal_handler_del(accelerometer_dbus->dbus_property_changed_sh);
+
    // TODO Should to this and wait for the release before continuing
+   INF("Freeing convertible resources");
    accelerometer_dbus->pending_acc_crelease = eldbus_proxy_call(accelerometer_dbus->sensor_proxy, "ReleaseAccelerometer", on_accelerometer_released, accelerometer_dbus, -1, "");
    if (accelerometer_dbus)
    {
@@ -237,7 +240,7 @@ on_accelerometer_orientation(void *data, const Eldbus_Message *msg, Eldbus_Pendi
    }
 
    orientation = access_string_property(msg, &variant, result);
-   if (result == EINA_FALSE)
+   if (*result == EINA_FALSE)
    {
       INF("Failed to retrieve the orientation from dbus message");
       free(result);
@@ -416,10 +419,6 @@ on_accelerometer_claimed(void *data EINA_UNUSED, const Eldbus_Message *msg, Eldb
       return;
    }
    INF("Accelerometer claimed");
-
-   // set the acquired field
-   DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
-   accelerometer->acquired = EINA_TRUE;
 }
 
 void
@@ -434,11 +433,4 @@ on_accelerometer_released(void *data EINA_UNUSED, const Eldbus_Message *msg, Eld
       return;
    }
    INF("Accelerometer released");
-   // unset the acquired field
-   DbusAccelerometer *accelerometer = (DbusAccelerometer *) data;
-   if (accelerometer)
-   {
-      accelerometer->acquired = EINA_FALSE;
-   }
-
 }

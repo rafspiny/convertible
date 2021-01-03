@@ -91,6 +91,15 @@ collections {
             filter: "convertible/tablet" "default";
             after: "notify_disable_autorotate";
          }
+         program {
+            name: "disable_autorotate_icon";
+            action: STATE_SET "locked_autorotate" 0.0;
+            target: "convertible/tablet";
+            in: 0.1 0.0;
+            signal: "lock,rotation,icon";
+            source: "convertible/tablet";
+            filter: "convertible/tablet" "default";
+         }
          program { 
             name: "notify_disable_autorotate";
             /*signal: "mouse,clicked,*"; 
@@ -106,6 +115,15 @@ collections {
             source: "convertible/tablet";
             filter: "convertible/tablet" "locked_autorotate";
             after: "notify_enable_autorotate";
+         }
+         program {
+            name: "enable_autorotate_icon";
+            action: STATE_SET "default" 0.0;
+            target: "convertible/tablet";
+            in: 0.1 0.0;
+            signal: "unlock,rotation,icon";
+            source: "convertible/tablet";
+            filter: "convertible/tablet" "locked_autorotate";
          }
          program { 
             name: "notify_enable_autorotate";
