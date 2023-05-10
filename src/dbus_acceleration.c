@@ -8,6 +8,8 @@
 #include "convertible.h"
 #include "input_rotation.h"
 
+DbusAccelerometer* accelerometer_dbus;
+
 DbusAccelerometer* sensor_proxy_init() {
    // Initialise DBUS component
    if (accelerometer_dbus != NULL)

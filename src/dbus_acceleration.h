@@ -23,8 +23,6 @@ struct _DbusAccelerometer
    Eldbus_Signal_Handler *dbus_property_changed_sh;
 };
 
-DbusAccelerometer* accelerometer_dbus;
-
 /**
  * Fetch the DBUS interfaces and fill the DbusAccelerometer struct
  * */
