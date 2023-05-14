@@ -2,8 +2,9 @@ project('convertible', 'c',
         version: '0.1',
         license: 'MPL 2',
         default_options: [ 'c_std=gnu99', 'warning_level=2' ],
-        meson_version: '>= 0.50.0')
+        meson_version: '>= 0.64.0')
 pkgconfig = import('pkgconfig')
+fs = import('fs')
 cc = meson.get_compiler('c')
 
 dep_e = dependency('enlightenment')
@@ -14,7 +15,7 @@ deps = [
         dependency('ecore'),
         dependency('eldbus')
 ]
-release = dep_e.get_pkgconfig_variable('release')
+release = dep_e.get_variable(pkgconfig : 'release')
 host_os = host_machine.system()
 if host_os == 'linux'
         if cc.has_header_symbol('features.h', '__UCLIBC__')
@@ -58,20 +59,16 @@ shared_module('module', build_files,
 desktop_data = configuration_data()
         desktop_data.set('GADGET_DIR', dir_gadgets)
 
-configure_file(input: 'convertible.desktop.in',
-        output: 'module.desktop',
-        install: true,
-        install_dir: dir_gadgets,
-        configuration: desktop_data)
+# https://mesonbuild.com/Fs-module.html#copyfile
+fs.copyfile('convertible.desktop.in', 'module.desktop', install: true, install_dir: dir_gadgets)
 
-configure_file(input: 'theme/convertible.edj',
-        output: 'e-module-convertible.edj',
-        install: true,
-        install_dir: dir_gadgets,
-        copy: true)
-
-configure_file(input: 'theme/convertible-icon.edj',
-        output: 'convertible-icon.edj',
-        install: true,
-        install_dir: dir_gadgets,
-        copy: true)
+fs.copyfile('theme/convertible.edj', 
+	'e-module-convertible.edj', 
+	install: true, 
+	install_dir: dir_gadgets
+)
+fs.copyfile('theme/convertible-icon.edj', 
+	'convertible-icon.edj', 
+	install: true, 
+	install_dir: dir_gadgets
+)
